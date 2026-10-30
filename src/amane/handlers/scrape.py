@@ -87,6 +87,10 @@ class ScrapeHandler(TaskHandler[ScrapePayload, ScrapeResult]):
         file = None
         if payload.media_file_id:
             file = await self._repo.get_media_file(media_id=payload.media_file_id)
+            if file is not None and file.id is not None:
+                # 刮削可直接从旧索引触发, 不一定经过库刷新; 先按当前文件名标记规则投影相位.
+                await self._repo.reproject_media_file_phases([file], marker_rules=self._repo.marker_rules())
+                file = await self._repo.get_media_file(media_id=file.id)
 
         # 仅当本次可用来源声明需要指纹时计算 oshash.
         file_hash = file.oshash if file else None
