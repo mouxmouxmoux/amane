@@ -1764,6 +1764,7 @@ export type HotSettings = {
     llm?: LlmConfig;
     r18?: R18Config;
     watcher?: WatcherConfig;
+    parsing?: ParsingConfig;
     worker?: WorkerConfig;
     logging?: LoggingConfig;
     /**
@@ -3144,6 +3145,28 @@ export type OrganizeSubmission = {
      * Type
      */
     type: 'organize';
+};
+
+/**
+ * ParsingConfig
+ */
+export type ParsingConfig = {
+    /**
+     * Cracked Suffixes
+     */
+    cracked_suffixes?: Array<string>;
+    /**
+     * Leaked Suffixes
+     */
+    leaked_suffixes?: Array<string>;
+    /**
+     * Uncensored Suffixes
+     */
+    uncensored_suffixes?: Array<string>;
+    /**
+     * Subtitle Suffixes
+     */
+    subtitle_suffixes?: Array<string>;
 };
 
 /**

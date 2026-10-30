@@ -3535,6 +3535,22 @@ export const HotSettingsSchema = {
                 ]
             }
         },
+        parsing: {
+            $ref: '#/components/schemas/ParsingConfig',
+            default: {
+                cracked_suffixes: [
+                    'U',
+                    'UC',
+                    'LTX'
+                ],
+                leaked_suffixes: [],
+                uncensored_suffixes: [],
+                subtitle_suffixes: [
+                    'C',
+                    'UC'
+                ]
+            }
+        },
         worker: {
             $ref: '#/components/schemas/WorkerConfig',
             default: {
@@ -6284,6 +6300,42 @@ export const OrganizeSubmissionSchema = {
         'type'
     ],
     title: 'OrganizeSubmission'
+} as const;
+
+export const ParsingConfigSchema = {
+    properties: {
+        cracked_suffixes: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Cracked Suffixes'
+        },
+        leaked_suffixes: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Leaked Suffixes'
+        },
+        uncensored_suffixes: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Uncensored Suffixes'
+        },
+        subtitle_suffixes: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Subtitle Suffixes'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'ParsingConfig'
 } as const;
 
 export const PathTemplatePlaceholderSchema = {

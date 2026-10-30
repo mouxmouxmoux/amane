@@ -10,7 +10,8 @@
     "logging": "Logging",
     "sr": "Super Resolution",
     "llm": "LLM Translation",
-    "watermark": "Watermark"
+    "watermark": "Watermark",
+    "parsing": "Filename Markers"
   },
   "config": {
     "loadError": "Failed to load configuration"
@@ -847,6 +848,24 @@
       "config": {
         "label": "Plugin configuration",
         "description": "Configuration fields provided by the plugin"
+      }
+    },
+    "parsing": {
+      "cracked_suffixes": {
+        "label": "Cracked Suffixes",
+        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+      },
+      "leaked_suffixes": {
+        "label": "Leaked Suffixes",
+        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+      },
+      "uncensored_suffixes": {
+        "label": "Uncensored Suffixes",
+        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+      },
+      "subtitle_suffixes": {
+        "label": "Subtitle Suffixes",
+        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
       }
     }
   }

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..db import Library, MediaFileStatus
 from ..library import LibraryHit, LibraryScan, has_companion_subtitle
+from ..parsing import FileMarkerRules
 from ..utils.oshash import compute_oshash
 from ..utils.threads import existing_disk_path, in_thread
 
@@ -52,10 +53,15 @@ def scan_library(scan_dir: Path, *, recursive: bool, scan: LibraryScan) -> list[
 
 
 async def register_media_file(
-    repo: Repository, library_id: int, path: Path, *, library: Library | None = None
+    repo: Repository,
+    library_id: int,
+    path: Path,
+    *,
+    library: Library | None = None,
+    marker_rules: FileMarkerRules | None = None,
 ) -> MediaFile:
     """注册不读文件内容; oshash 留给刮削按需计算. 有库配置时立刻查一次同目录字幕."""
-    media = await repo.create_media_file(library_id=library_id, path=str(path))
+    media = await repo.create_media_file(library_id=library_id, path=str(path), marker_rules=marker_rules)
     if library is not None:
         await refresh_external_subtitle(repo, media, library)
     return media

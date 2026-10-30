@@ -1,6 +1,7 @@
 import contextlib
 import importlib
 import os
+import re
 import tempfile
 import tomllib
 from copy import copy
@@ -36,7 +37,7 @@ from ..enums import (
     WatermarkKind,
 )
 from ..net.bsk import resolve_bsk_path
-from ..parsing import ContentType
+from ..parsing import ContentType, FileMarkerRules
 from ..plugins.models import PluginConfig
 from ..sr import SrPreset
 from ..utils.model import kv
@@ -760,6 +761,36 @@ class ActorScrapingConfig(BaseModel):
         return assert_sites_allowed(v, frozenset(ACTOR_IMAGE_SITES), field="image_sites")
 
 
+class ParsingConfig(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    cracked_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().cracked_suffixes))
+    leaked_suffixes: list[str] = Field(default_factory=list)
+    uncensored_suffixes: list[str] = Field(default_factory=list)
+    subtitle_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().subtitle_suffixes))
+
+    @field_validator("cracked_suffixes", "leaked_suffixes", "uncensored_suffixes", "subtitle_suffixes")
+    @classmethod
+    def _normalize_suffixes(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            suffix = value.strip().removeprefix("-")
+            if not suffix.isascii() or re.fullmatch(r"[A-Z][A-Z0-9]*", suffix.upper()) is None:
+                raise ValueError(f"文件名后缀标记必须是字母开头的 ASCII 字母数字串: {value!r}")
+            suffix = suffix.upper()
+            if suffix not in normalized:
+                normalized.append(suffix)
+        return normalized
+
+    def to_marker_rules(self) -> FileMarkerRules:
+        return FileMarkerRules(
+            cracked_suffixes=tuple(self.cracked_suffixes),
+            leaked_suffixes=tuple(self.leaked_suffixes),
+            uncensored_suffixes=tuple(self.uncensored_suffixes),
+            subtitle_suffixes=tuple(self.subtitle_suffixes),
+        )
+
+
 class HotSettings(BaseModel):
     """运行时可更新, 持久化到 TOML. extra=forbid, 未知字段须校验失败."""
 
@@ -816,6 +847,7 @@ class HotSettings(BaseModel):
     llm: LLMConfig = LLMConfig()
     r18: R18Config = R18Config()
     watcher: WatcherConfig = WatcherConfig()
+    parsing: ParsingConfig = ParsingConfig()
     worker: WorkerConfig = WorkerConfig()
     logging: LoggingConfig = LoggingConfig()
     plugins: dict[str, PluginConfig] = Field(default_factory=dict, json_schema_extra={"x-hidden": True})

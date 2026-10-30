@@ -4,10 +4,18 @@ from typing import NamedTuple, Unpack
 from sqlalchemy import delete as sqla_delete
 from sqlalchemy import func, or_
 from sqlalchemy.sql.functions import count
-from sqlmodel import col, select
+from sqlmodel import col, select, update
 from sqlmodel.sql.expression import SelectOfScalar
 
-from ...parsing import ContentType, FilePhase, FilePhaseSummary, Mosaic, file_phase_from_path, summarize_file_phases
+from ...parsing import (
+    ContentType,
+    FileMarkerRules,
+    FilePhase,
+    FilePhaseSummary,
+    Mosaic,
+    file_phase_from_path,
+    summarize_file_phases,
+)
 from ...utils.collections import unique_ids
 from ...utils.path import nfc_path
 from ..models import MediaFile, MediaFileStatus, MediaSortField, Metadata, SortOrder
@@ -15,13 +23,13 @@ from ..repo_types import _MEDIA_SORT_COLUMNS, MediaFileUpdates, _apply_media_pha
 from .base import RepositoryMixinBase, chunks
 
 
-def _apply_path_phase(media: MediaFile) -> None:
-    """path 是真值, 相位列是投影; 创建与改 path 时必须回填.
+def _apply_path_phase(media: MediaFile, marker_rules: FileMarkerRules) -> None:
+    """相位列由 path 与解析规则投影; 创建与修改 path 时必须回填.
 
     只回填 path 能推出的相位. 同目录字幕不是 path 的投影, 由调用方另经
     ``handlers._common.refresh_external_subtitle`` 写入.
     """
-    phase = file_phase_from_path(media.path)
+    phase = file_phase_from_path(media.path, marker_rules=marker_rules)
     media.mosaic = phase["mosaic"]
     media.has_subtitle_in_name = phase["has_subtitle"]
     media.definition = phase["definition"]
@@ -42,13 +50,16 @@ class MetadataFilesSummary(NamedTuple):
 
 
 class MediaRepoMixin(RepositoryMixinBase):
-    async def create_media_file(self, library_id: int, **updates: Unpack[MediaFileUpdates]) -> MediaFile:
+    async def create_media_file(
+        self, library_id: int, *, marker_rules: FileMarkerRules | None = None, **updates: Unpack[MediaFileUpdates]
+    ) -> MediaFile:
+        rules = marker_rules if marker_rules is not None else self.marker_rules()
         path = updates.get("path")
         if path is not None:
             updates["path"] = nfc_path(path)
         async with self._session() as session:
             media = MediaFile(library_id=library_id, **updates)
-            _apply_path_phase(media)
+            _apply_path_phase(media, rules)
             session.add(media)
             await session.commit()
             await session.refresh(media)
@@ -185,7 +196,10 @@ class MediaRepoMixin(RepositoryMixinBase):
             result = await session.exec(stmt)
             return result.one() or 0
 
-    async def update_media_file(self, media_id: int, **updates: Unpack[MediaFileUpdates]) -> MediaFile | None:
+    async def update_media_file(
+        self, media_id: int, *, marker_rules: FileMarkerRules | None = None, **updates: Unpack[MediaFileUpdates]
+    ) -> MediaFile | None:
+        rules = marker_rules if marker_rules is not None else self.marker_rules()
         async with self._session() as session:
             media = await session.get(MediaFile, media_id)
             if media is None:
@@ -193,7 +207,7 @@ class MediaRepoMixin(RepositoryMixinBase):
             # 显式赋值, 禁止 setattr; 字段集由 MediaFileUpdates 与 MediaFile 静态对齐.
             if "path" in updates:
                 media.path = nfc_path(updates["path"])
-                _apply_path_phase(media)
+                _apply_path_phase(media, rules)
             if "number" in updates:
                 media.number = updates["number"]
             if "oshash" in updates:
@@ -215,6 +229,37 @@ class MediaRepoMixin(RepositoryMixinBase):
             await session.commit()
             await session.refresh(media)
             return media
+
+    async def reproject_media_file_phases(
+        self, media_files: Sequence[MediaFile], *, marker_rules: FileMarkerRules
+    ) -> None:
+        """只更新扫描时路径仍有效的记录; 路径变更由其写入方自行投影."""
+        expected = {media.id: media.path for media in media_files if media.id is not None}
+        for ids in chunks(list(expected)):
+            async with self._session() as session:
+                rows = await session.exec(select(MediaFile).where(col(MediaFile.id).in_(ids)))
+                for media in rows.all():
+                    assert media.id is not None
+                    if media.path != expected[media.id]:
+                        continue
+                    phase = file_phase_from_path(media.path, marker_rules=marker_rules)
+                    if (
+                        media.mosaic == phase["mosaic"]
+                        and media.has_subtitle_in_name == phase["has_subtitle"]
+                        and media.definition == phase["definition"]
+                    ):
+                        continue
+                    await session.exec(
+                        update(MediaFile)
+                        .where(col(MediaFile.id) == media.id, col(MediaFile.path) == media.path)
+                        .values(
+                            mosaic=phase["mosaic"],
+                            has_subtitle_in_name=phase["has_subtitle"],
+                            definition=phase["definition"],
+                            updated_at=_utcnow(),
+                        )
+                    )
+                await session.commit()
 
     async def delete_media_file(self, media_id: int) -> bool:
         async with self._session() as session:

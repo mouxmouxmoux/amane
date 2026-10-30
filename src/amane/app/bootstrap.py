@@ -122,7 +122,7 @@ async def start_app(config: ConfigManager | None = None) -> AppSession:
 
     db_log_policy = DbLogPolicy()
     engine = await create_async_engine_from_path(cold.db_path, policy=db_log_policy)
-    repo = Repository(engine)
+    repo = Repository(engine, get_marker_rules=lambda: config.hot.parsing.to_marker_rules())
 
     # 会话级只读引擎, 不纳入 Alembic; dsn 变更经 _rebuild() 重建
     r18_db = build_r18_db(hot.r18)

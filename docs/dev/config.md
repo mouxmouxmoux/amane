@@ -54,6 +54,10 @@ Worker 替换不取消运行中任务: `_rebuild()` 构建新 worker 后旧 work
 
 **浏览器池**: 只在 `network.browser` / `network.proxy` 变化时重建 (见 `src/amane/app/runtime.py::AppRuntime._rebuild`), 其余热重载复用同一实例以保留已解决的挑战会话; 被替换的旧池由 `_release_browser()` 在引用它的退役 worker 排空后关闭.
 
+## 文件名标记 (Hot)
+
+`src/amane/config/manager.py::ParsingConfig.to_marker_rules` 将 `parsing` 转换为不可变规则. `src/amane/db/repository.py::Repository.marker_rules` 经启动期注入的读取函数取得当前配置; 文件登记、路径更新、整理与删除清单显式传递快照, 解析模块不读取配置. 保存不回填存量行; 回填边界见 [data-model.md](data-model.md).
+
 ## TOML 持久化
 
 写 TOML 必须用临时文件 + `os.replace` 原子化 — 直接覆盖时写入中途进程中止会留下空文件. `tomli_w` 不接受 `None` / `set`, 持久化前须按 JSON 模式导出并剔除 `None` 与默认值.

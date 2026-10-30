@@ -70,6 +70,8 @@ CASES: list[object] = [
     _Case("MIDV-123-UC-4K.mp4", has_subtitle=True, mosaic="cracked", definition="4K", number="MIDV-123"),
     _Case("MIDV-123-UC-CD1-4K.mp4", cd=1, has_subtitle=True, mosaic="cracked", definition="4K", number="MIDV-123"),
     _Case("MIDV-123-U.mp4", mosaic="cracked", number="MIDV-123"),
+    _Case("MIDV-123-LTX.mp4", mosaic="cracked", number="MIDV-123"),
+    _Case("MIDV-123-ltx-CD1-4K.mp4", cd=1, mosaic="cracked", definition="4K", number="MIDV-123"),
     _Case("MIDV-123-C-U.mp4", has_subtitle=True, mosaic="cracked", number="MIDV-123"),
     _Case("MIDV-123-U-CD1.mp4", cd=1, mosaic="cracked", number="MIDV-123"),
     _Case("HEYZO-123.mp4", number="HEYZO-123"),

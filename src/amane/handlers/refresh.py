@@ -37,6 +37,7 @@ class RefreshHandler(TaskHandler[RefreshPayload, RefreshResult]):
         self._inventory_store = inventory_store
 
     async def handle(self, payload: RefreshPayload) -> TaskResult[RefreshResult]:
+        marker_rules = self._repo.marker_rules()
         scan_dir = Path(payload.path)
         if not await path_is_dir(scan_dir):
             return TaskResult(success=False, error=f"不是目录: {payload.path}")
@@ -93,6 +94,7 @@ class RefreshHandler(TaskHandler[RefreshPayload, RefreshResult]):
                 if library is not None and self._inventory_store is not None and inventory.scope_path is None:
                     # 子目录范围的巡检不代表整库, 因此不覆盖面板用的清单.
                     self._inventory_store.put(inventory)
+                reproject: list[MediaFile] = []
                 for hit in inventory.media_hits:
                     file_path = hit.path
                     path_key = nfc_path(str(file_path))
@@ -102,11 +104,15 @@ class RefreshHandler(TaskHandler[RefreshPayload, RefreshResult]):
                     if walked % _WALK_LOG_EVERY == 0:
                         logger.info("scan walking", path=payload.path, seen=walked, added=added)
                     if path_key not in existing_by_path:
-                        media = await register_media_file(self._repo, payload.library_id, file_path, library=library)
+                        media = await register_media_file(
+                            self._repo, payload.library_id, file_path, library=library, marker_rules=marker_rules
+                        )
                         existing_by_path[path_key] = media
                         added += 1
                     else:
+                        reproject.append(existing_by_path[path_key])
                         subtitles += await self._sync_external_subtitle(existing_by_path[path_key], hit)
+                await self._repo.reproject_media_file_phases(reproject, marker_rules=marker_rules)
                 if added:
                     logger.info("new files discovered", path=payload.path, count=added)
 

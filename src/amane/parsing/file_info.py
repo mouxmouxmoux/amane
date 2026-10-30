@@ -54,6 +54,14 @@ class MosaicNature(StrEnum):
 
 
 @dataclass(frozen=True)
+class FileMarkerRules:
+    cracked_suffixes: tuple[str, ...] = ("U", "UC", "LTX")
+    leaked_suffixes: tuple[str, ...] = ()
+    uncensored_suffixes: tuple[str, ...] = ()
+    subtitle_suffixes: tuple[str, ...] = ("C", "UC")
+
+
+@dataclass(frozen=True)
 class FileInfo:
     number: str | None
     content_type: ContentType
@@ -260,6 +268,7 @@ def parse_file_info(
     text: str | None = None,
     has_external_subtitle: bool = False,
     escape_strings: list[str] | None = None,
+    marker_rules: FileMarkerRules | None = None,
 ) -> FileInfo:
     """有路径则解析路径, 否则解析 ``text``. 两者至少要有一个.
 
@@ -274,6 +283,7 @@ def parse_file_info(
     if path is None and text is None:
         raise ValueError("path or text required")
     escape = escape_strings or []
+    rules = marker_rules if marker_rules is not None else FileMarkerRules()
     if path is not None:
         # 路径: 文件名优先识别; 目录可覆盖类型, 分集可回退父目录.
         p = Path(path)
@@ -285,7 +295,7 @@ def parse_file_info(
         cd = _detect_cd(basename)
         if cd is None and dirs:
             cd = _detect_cd_from_parent(dirs[-1])
-        mosaic = _detect_mosaic(basename) or _detect_mosaic_from_dirs(dirs)
+        mosaic = _detect_mosaic(basename, rules) or _detect_mosaic_from_dirs(dirs)
     else:
         # 文本: 只执行番号规则; 未命中则 number 为 None, 相位只依据该字符串.
         assert text is not None
@@ -293,13 +303,13 @@ def parse_file_info(
         number, content_type = _identify(text, dirs, escape, fallback=False)
         basename = Path(text).stem.upper()
         cd = _detect_cd(basename)
-        mosaic = _detect_mosaic(basename)
+        mosaic = _detect_mosaic(basename, rules)
     return FileInfo(
         number=number,
         content_type=content_type,
         prefix=_prefix(number) if number else "",
         cd=cd,
-        has_subtitle_in_name=_detect_subtitle(basename),
+        has_subtitle_in_name=_detect_subtitle(basename, rules),
         has_external_subtitle=has_external_subtitle,
         mosaic=mosaic,
         definition=_detect_definition(basename),
@@ -354,9 +364,9 @@ def is_vr(tags: Iterable[str]) -> bool:
     return any(tag.strip().casefold() in VR_TAGS for tag in tags)
 
 
-def file_phase_from_path(path: str | Path) -> FilePhase:
+def file_phase_from_path(path: str | Path, *, marker_rules: FileMarkerRules | None = None) -> FilePhase:
     """入库相位只取路径能给出的部分: 外挂字幕命中不在路径里, 由 MediaFile 各自的列承载."""
-    info = parse_file_info(path)
+    info = parse_file_info(path, marker_rules=marker_rules)
     return FilePhase(
         mosaic=info.mosaic,
         has_subtitle=info.has_subtitle_in_name,
@@ -680,19 +690,23 @@ def _detect_cd_from_parent(parent: str) -> int | None:
     return n if n >= 1 else None
 
 
-def _detect_subtitle(basename: str) -> bool:
-    if re.search(r"-U?C(?![A-Z0-9])", basename):
+def _matches_suffix(basename: str, suffixes: tuple[str, ...]) -> bool:
+    return any(re.search(rf"-{re.escape(suffix)}(?![A-Z0-9])", basename) for suffix in suffixes)
+
+
+def _detect_subtitle(basename: str, rules: FileMarkerRules) -> bool:
+    if _matches_suffix(basename, rules.subtitle_suffixes):
         return True
     return bool(re.search(r"[字幕中文]", basename))
 
 
-def _detect_mosaic(basename: str) -> Mosaic | None:
-    """basename 已大写. `CRACKED` / `-U` / `-UC` 是破解; 多标记优先级见 docs/dev/data-model.md."""
-    if re.search(r"破解|克破|CRACKED", basename) or re.search(r"-U(C)?(?![A-Z0-9])", basename):
+def _detect_mosaic(basename: str, rules: FileMarkerRules) -> Mosaic | None:
+    """basename 已大写; 多标记优先级见 docs/dev/data-model.md."""
+    if re.search(r"破解|克破|CRACKED", basename) or _matches_suffix(basename, rules.cracked_suffixes):
         return Mosaic.CRACKED
-    if re.search(r"流出|LEAKED", basename):
+    if re.search(r"流出|LEAKED", basename) or _matches_suffix(basename, rules.leaked_suffixes):
         return Mosaic.LEAKED
-    if re.search(r"無碼|无码|UNCENSORED", basename):
+    if re.search(r"無碼|无码|UNCENSORED", basename) or _matches_suffix(basename, rules.uncensored_suffixes):
         return Mosaic.UNCENSORED
     return None
 

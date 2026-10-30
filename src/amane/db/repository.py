@@ -1,9 +1,11 @@
 import asyncio
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ..parsing import FileMarkerRules
 from . import repos
 
 if TYPE_CHECKING:
@@ -20,10 +22,16 @@ class Repository(
     repos.SchedulesRepoMixin,
     repos.TasksRepoMixin,
 ):
-    def __init__(self, engine: AsyncEngine):
+    def __init__(
+        self, engine: AsyncEngine, *, get_marker_rules: Callable[[], FileMarkerRules] = FileMarkerRules
+    ) -> None:
         self._engine = engine
+        self._get_marker_rules = get_marker_rules
         # SQLite DEFERRED: 两个 session 的 SELECT 都在写锁前看到空表. 入队互斥检查与 INSERT 同锁.
         self._task_insert_lock = asyncio.Lock()
+
+    def marker_rules(self) -> FileMarkerRules:
+        return self._get_marker_rules()
 
     async def initialize(self) -> None:
         """``create_all`` 仅补缺表; schema 演进须经 Alembic."""

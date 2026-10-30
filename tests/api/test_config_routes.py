@@ -6,13 +6,39 @@ from typing import TYPE_CHECKING
 import pytest
 
 from amane.config import HotSettings
+from amane.parsing import Mosaic
 from tests.api.conftest import hot_for_tests
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from fastapi import FastAPI
     from httpx2 import AsyncClient
 
 
 class TestConfigHttp:
+    @pytest.mark.asyncio(loop_scope="function")
+    async def test_filename_markers_hot_update(self, client: AsyncClient, app: FastAPI, safe_path: Path) -> None:
+        repo = app.state.runtime.repo
+        library = await repo.create_library(name="markers", path=str(safe_path))
+        assert library.id is not None
+        response = await client.patch("config", json={"parsing": {"cracked_suffixes": ["-xyz"]}})
+        assert response.status_code == 200
+        assert response.json()["parsing"]["cracked_suffixes"] == ["XYZ"]
+        media = await repo.create_media_file(library.id, path="MIDV-123-XYZ.mp4")
+        assert media.mosaic is Mosaic.CRACKED
+        assert [item.id for item in await repo.list_media_files(mosaic=Mosaic.CRACKED)] == [media.id]
+        before = (await client.get("config")).json()
+        invalid = await client.patch("config", json={"parsing": {"cracked_suffixes": [".*"]}})
+        assert invalid.status_code == 422
+        assert "cracked_suffixes" in invalid.json()["detail"]
+        assert (await client.get("config")).json() == before
+        response = await client.patch("config", json={"parsing": {"cracked_suffixes": []}})
+        assert response.status_code == 200
+        assert (await repo.create_media_file(library.id, path="MIDV-456-XYZ.mp4")).mosaic is None
+        current = await repo.get_media_file(media.id)
+        assert current is not None and current.mosaic is Mosaic.CRACKED
+
     @pytest.mark.asyncio(loop_scope="function")
     async def test_get_patch_schema(self, client: AsyncClient):
         resp = await client.get("config")

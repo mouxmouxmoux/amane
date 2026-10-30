@@ -215,7 +215,9 @@ async def apply_file_operations(
 
     # 渲染路径后执行落盘.
     ext = Path(media_file.path).suffix.lstrip(".")
-    file_info = parse_file_info(media_file.path, has_external_subtitle=media_file.has_external_subtitle)
+    file_info = parse_file_info(
+        media_file.path, has_external_subtitle=media_file.has_external_subtitle, marker_rules=repo.marker_rules()
+    )
     actor_genders = {a.name: a.gender for a in await repo.get_actors_by_names(metadata.actors)}
     paths = resolve_paths(
         library,
