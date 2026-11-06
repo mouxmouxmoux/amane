@@ -74,6 +74,7 @@ $StdlibArgs = @()
     @StdlibArgs `
     --copy-metadata genai_prices `
     --copy-metadata pydantic_ai_slim `
+    --copy-metadata httpx2 `
     --copy-metadata amane `
     --distpath (Join-Path $Work "dist") `
     --workpath (Join-Path $Work "build") `
