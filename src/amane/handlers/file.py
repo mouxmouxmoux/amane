@@ -32,7 +32,7 @@ from ..organize import (
     video_dest,
 )
 from ..organize.link import create_video_link
-from ..parsing import ContentType, FileInfo, parse_file_info
+from ..parsing import ContentType, FileInfo, FileMarkerRules, parse_file_info
 from ..utils.path import existing_disk_path as existing_disk_path_sync
 from ..utils.path import is_descendant, nfc_path, path_is_under
 from ..utils.threads import existing_disk_path, in_thread, path_is_dir
@@ -83,6 +83,7 @@ async def execute_file_operations(
     safe_dirs: Sequence[Path] | None = (),
     watermark_dir: Path | None = None,
     actor_genders: dict[str, ActorGender] | None = None,
+    marker_rules: FileMarkerRules | None = None,
 ) -> FileOperationsResult:
     """``file_info`` 由渲染路径的那一次 ``parse_file_info`` 产出, 必须带上 ``has_external_subtitle``.
 
@@ -151,6 +152,7 @@ async def execute_file_operations(
                     file_info=file_info,
                     link=paths.link,
                     actor_genders=actor_genders,
+                    marker_rules=marker_rules,
                 )
             except ValueError as e:
                 return FileOperationsResult(outcome=PlaceOutcome.FAILED, dest=org_result.dest, error=str(e))
@@ -177,6 +179,7 @@ async def execute_file_operations(
             link_dir=paths.link.parent if paths.link is not None else None,
             link_name=paths.link.stem if paths.link is not None else None,
             actor_genders=actor_genders,
+            marker_rules=marker_rules,
         )
 
     if org_result.outcome is PlaceOutcome.PLACED:
@@ -214,9 +217,10 @@ async def apply_file_operations(
         return None
 
     # 渲染路径后执行落盘.
+    marker_rules = repo.marker_rules()
     ext = Path(media_file.path).suffix.lstrip(".")
     file_info = parse_file_info(
-        media_file.path, has_external_subtitle=media_file.has_external_subtitle, marker_rules=repo.marker_rules()
+        media_file.path, has_external_subtitle=media_file.has_external_subtitle, marker_rules=marker_rules
     )
     actor_genders = {a.name: a.gender for a in await repo.get_actors_by_names(metadata.actors)}
     paths = resolve_paths(
@@ -227,6 +231,7 @@ async def apply_file_operations(
         source_path=Path(media_file.path),
         safe_dirs=safe_dirs,
         actor_genders=actor_genders,
+        marker_rules=marker_rules,
     )
     return await execute_file_operations(
         media_file,
@@ -244,6 +249,7 @@ async def apply_file_operations(
         safe_dirs=safe_dirs,
         watermark_dir=watermark_dir,
         actor_genders=actor_genders,
+        marker_rules=marker_rules,
     )
 
 

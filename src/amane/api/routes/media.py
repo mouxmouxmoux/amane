@@ -1,11 +1,13 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from ...db.models import MediaFile, MediaFileStatus, MediaSortField, SortOrder
-from ...parsing import DEFINITION_VALUES, ContentType, Mosaic
+from ...db.models import Library, MediaFile, MediaFileStatus, MediaSortField, Metadata, SortOrder
+from ...organize import resolve_paths
+from ...parsing import DEFINITION_VALUES, ContentType, Mosaic, parse_file_info
 from ..deps import RepoDep
 from ..models import (
     MediaBatchDeleteRequest,
@@ -33,10 +35,61 @@ def _require_known_definition(definition: str | None) -> str | None:
     return definition
 
 
+async def _organized_paths(
+    repo: Repository, items: Sequence[MediaFile], metadata_by_id: Mapping[int, Metadata]
+) -> dict[int, str | None]:
+    libraries: dict[int, Library | None] = {}
+    result: dict[int, str | None] = {}
+    marker_rules = repo.marker_rules()
+    actor_names = sorted({name for metadata in metadata_by_id.values() for name in metadata.actors})
+    actor_genders = {actor.name: actor.gender for actor in await repo.get_actors_by_names(actor_names)}
+    for media in items:
+        media_id = media.id
+        if media_id is None or media.metadata_id is None:
+            continue
+        if media.library_id not in libraries:
+            libraries[media.library_id] = await repo.get_library(media.library_id)
+        library = libraries[media.library_id]
+        metadata = metadata_by_id.get(media.metadata_id)
+        if library is None or metadata is None:
+            continue
+        try:
+            file_info = parse_file_info(
+                media.path,
+                has_external_subtitle=media.has_external_subtitle,
+                marker_rules=marker_rules,
+            )
+            paths = resolve_paths(
+                library,
+                metadata,
+                ext=Path(media.path).suffix.lstrip("."),
+                file_info=file_info,
+                source_path=Path(media.path),
+                safe_dirs=None,
+                actor_genders=actor_genders,
+                marker_rules=marker_rules,
+            )
+        except ValueError:
+            continue
+        result[media_id] = str(paths.video)
+    return result
+
+
 async def _phase_responses(repo: Repository, items: Sequence[MediaFile]) -> list[MediaFileResponse]:
-    """文件行的有码 / 无码取自所属条目类型, 因此要批量补一次条目类型."""
-    types = await repo.content_types_by_metadata_ids([m.metadata_id for m in items if m.metadata_id is not None])
-    return [to_media_file_response(m, types.get(m.metadata_id) if m.metadata_id is not None else None) for m in items]
+    """批量读取所属条目, 同时用于文件相位与整理路径."""
+    metadata_by_id = {
+        metadata.id: metadata
+        for metadata in await repo.get_metadata_by_ids({m.metadata_id for m in items if m.metadata_id is not None})
+        if metadata.id is not None
+    }
+    types = {metadata_id: metadata.content_type for metadata_id, metadata in metadata_by_id.items()}
+    organized_paths = await _organized_paths(repo, items, metadata_by_id)
+    return [
+        to_media_file_response(m, types.get(m.metadata_id) if m.metadata_id is not None else None).model_copy(
+            update={"organized_path": organized_paths.get(m.id) if m.id is not None else None}
+        )
+        for m in items
+    ]
 
 
 @router.get("")

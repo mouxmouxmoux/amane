@@ -12,7 +12,7 @@ from amane.parsing import ContentType, FileMarkerRules, Mosaic, parse_file_info
         ("MIDV-123-XYZABC.mp4", None, False),
         ("MIDV-123-XYZ1.mp4", None, False),
         ("MIDV-123XYZ.mp4", None, False),
-        ("MIDV-123_XYZ.mp4", None, False),
+        ("MIDV-123_XYZ.mp4", Mosaic.CRACKED, True),
         ("MIDV-123-U.mp4", None, False),
         ("MIDV-123-UC.mp4", None, False),
         ("MIDV-123-LTX.mp4", None, False),
@@ -23,7 +23,7 @@ from amane.parsing import ContentType, FileMarkerRules, Mosaic, parse_file_info
         ("/流出/MIDV-123-N.mp4", Mosaic.UNCENSORED, False),
         ("/流出/MIDV-123.mp4", Mosaic.LEAKED, False),
         ("/XYZ/MIDV-123.mp4", None, False),
-        ("[破解字幕]MIDV-123.mp4", Mosaic.CRACKED, True),
+        ("[XYZ]MIDV-123.mp4", Mosaic.CRACKED, True),
     ],
 )
 def test_configured_markers(name: str, mosaic: Mosaic | None, subtitle: bool) -> None:
@@ -44,3 +44,17 @@ def test_text_markers_with_disabled_suffixes(text: str) -> None:
     assert info.number == "MIDV-123"
     assert info.mosaic is None
     assert not info.has_subtitle
+
+
+@pytest.mark.parametrize("prefix", ["UC", "LTX"])
+@pytest.mark.parametrize("pattern", ["{}.mp4", "[{}].mp4", "foo {}.mp4", "foo-{}.mp4", "【{}】.mp4"])
+def test_number_prefix_is_not_marker(prefix: str, pattern: str) -> None:
+    number = f"{prefix}-123"
+    info = parse_file_info(pattern.format(number))
+    assert info.number == number
+    assert info.mosaic is None
+    assert not info.has_subtitle_in_name
+    marked = parse_file_info(pattern.format(number + "-UC"))
+    assert marked.number == number
+    assert marked.mosaic is Mosaic.CRACKED
+    assert marked.has_subtitle_in_name

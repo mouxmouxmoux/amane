@@ -349,6 +349,13 @@ class MetadataRepoMixin(RepositoryMixinBase):
         async with self._session() as session:
             return await session.get(Metadata, metadata_id)
 
+    async def get_metadata_by_ids(self, ids: Collection[int]) -> list[Metadata]:
+        if not ids:
+            return []
+        async with self._session() as session:
+            stmt = select(Metadata).where(col(Metadata.id).in_(set(ids)))
+            return list((await session.exec(stmt)).all())
+
     async def get_metadata_by_number(self, number: str) -> Metadata | None:
         """大小写不敏感; 返回行保留库内原始大小写."""
         async with self._session() as session:

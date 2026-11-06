@@ -117,6 +117,8 @@ const COLUMN_WIDTH: Record<SortableColumn, number | undefined> = {
   updated_at: 110,
 };
 
+const ORGANIZED_PATH_VISIBLE_FROM: MantineBreakpoint = "sm";
+
 const CELL_OVERFLOW = { overflow: "hidden", maxWidth: 0 } as const;
 
 /**
@@ -418,7 +420,18 @@ export function LibraryMediaTable({
             <Table.Th w={120} visibleFrom={METADATA_VISIBLE_FROM}>
               {t("columns.metadata")}
             </Table.Th>
-            {SORTABLE_COLUMNS.map((field) => (
+            <SortableTh
+              field="path"
+              label={t("columns.path")}
+              sortBy={effectiveSortBy}
+              order={effectiveOrder}
+              onSort={onSort}
+              w={COLUMN_WIDTH.path}
+            />
+            <Table.Th visibleFrom={ORGANIZED_PATH_VISIBLE_FROM}>
+              {t("columns.organizedPath")}
+            </Table.Th>
+            {SORTABLE_COLUMNS.filter((field) => field !== "path").map((field) => (
               <SortableTh
                 key={field}
                 field={field}
@@ -477,6 +490,22 @@ export function LibraryMediaTable({
                     </Text>
                     <FilePhaseBadges phase={item} />
                   </Stack>
+                </Table.Td>
+                <Table.Td style={CELL_OVERFLOW} visibleFrom={ORGANIZED_PATH_VISIBLE_FROM}>
+                  <Text
+                    size="sm"
+                    ff="monospace"
+                    truncate
+                    title={
+                      item.organized_path == null
+                        ? undefined
+                        : relativePath(libraryPath, item.organized_path)
+                    }
+                  >
+                    {item.organized_path == null
+                      ? "—"
+                      : relativePath(libraryPath, item.organized_path)}
+                  </Text>
                 </Table.Td>
                 <Table.Td style={CELL_OVERFLOW}>
                   <Badge size="sm" variant="light" color={statusColor(item.status)}>

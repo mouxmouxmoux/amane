@@ -2506,6 +2506,10 @@ export type MediaFileResponse = {
      */
     path: string;
     /**
+     * Organized Path
+     */
+    organized_path?: string | null;
+    /**
      * Oshash
      */
     oshash?: string | null;
@@ -3301,17 +3305,33 @@ export type ParsingConfig = {
      */
     cracked_suffixes?: Array<string>;
     /**
+     * Cracked Display Name
+     */
+    cracked_display_name?: string;
+    /**
      * Leaked Suffixes
      */
     leaked_suffixes?: Array<string>;
+    /**
+     * Leaked Display Name
+     */
+    leaked_display_name?: string;
     /**
      * Uncensored Suffixes
      */
     uncensored_suffixes?: Array<string>;
     /**
+     * Uncensored Display Name
+     */
+    uncensored_display_name?: string;
+    /**
      * Subtitle Suffixes
      */
     subtitle_suffixes?: Array<string>;
+    /**
+     * Subtitle Display Name
+     */
+    subtitle_display_name?: string;
 };
 
 /**

@@ -4,11 +4,58 @@ from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
+
+from amane.api.routes.media import _phase_responses
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from httpx2 import AsyncClient
+    from sqlalchemy.engine import Connection, ExecutionContext
 
     from amane.db.repository import Repository
+
+
+@pytest.mark.asyncio
+async def test_path_preview_query_count(repo: Repository, tmp_path: Path) -> None:
+    library = await repo.create_library(name="preview", path=str(tmp_path), video_template="{number}.{ext}")
+    assert library.id is not None
+    first = await repo.upsert_metadata(number="MIDV-123", actors=["Actor A"])
+    second = await repo.upsert_metadata(number="MIDV-456", actors=["Actor A", "Actor B"])
+    media = [
+        await repo.create_media_file(library.id, path=str(tmp_path / f"{metadata.number}.mp4"), metadata_id=metadata.id)
+        for metadata in (first, second)
+    ]
+    queries: list[str] = []
+
+    def count_query(
+        connection: Connection,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: ExecutionContext,
+        executemany: bool,
+    ) -> None:
+        queries.append(statement)
+
+    event.listen(repo._engine.sync_engine, "before_cursor_execute", count_query)
+    try:
+        assert await _phase_responses(repo, []) == []
+        assert queries == []
+        single = await _phase_responses(repo, media[:1])
+        single_count = len(queries)
+        queries.clear()
+        rows = await _phase_responses(repo, media * 100)
+        assert len(queries) == single_count == 3
+        assert len(rows) == 200
+        assert single[0].organized_path == str(tmp_path / "MIDV-123.mp4")
+        assert rows[1].organized_path == str(tmp_path / "MIDV-456.mp4")
+        for metadata_id in (None, -1):
+            missing = await _phase_responses(repo, [media[0].model_copy(update={"metadata_id": metadata_id})])
+            assert missing[0].organized_path is None
+    finally:
+        event.remove(repo._engine.sync_engine, "before_cursor_execute", count_query)
 
 
 @pytest_asyncio.fixture(autouse=True)

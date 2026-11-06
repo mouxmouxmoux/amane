@@ -1,7 +1,6 @@
 import contextlib
 import importlib
 import os
-import re
 import tempfile
 import tomllib
 from copy import copy
@@ -798,9 +797,13 @@ class ParsingConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     cracked_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().cracked_suffixes))
-    leaked_suffixes: list[str] = Field(default_factory=list)
-    uncensored_suffixes: list[str] = Field(default_factory=list)
+    cracked_display_name: str = "cracked"
+    leaked_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().leaked_suffixes))
+    leaked_display_name: str = "leaked"
+    uncensored_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().uncensored_suffixes))
+    uncensored_display_name: str = "uncensored"
     subtitle_suffixes: list[str] = Field(default_factory=lambda: list(FileMarkerRules().subtitle_suffixes))
+    subtitle_display_name: str = "C"
 
     @field_validator("cracked_suffixes", "leaked_suffixes", "uncensored_suffixes", "subtitle_suffixes")
     @classmethod
@@ -808,8 +811,8 @@ class ParsingConfig(BaseModel):
         normalized: list[str] = []
         for value in values:
             suffix = value.strip().removeprefix("-")
-            if not suffix.isascii() or re.fullmatch(r"[A-Z][A-Z0-9]*", suffix.upper()) is None:
-                raise ValueError(f"文件名后缀标记必须是字母开头的 ASCII 字母数字串: {value!r}")
+            if not suffix or not suffix[0].isalpha() or not all(char.isalnum() for char in suffix):
+                raise ValueError(f"文件名后缀标记必须以字母开头且只含字母或数字: {value!r}")
             suffix = suffix.upper()
             if suffix not in normalized:
                 normalized.append(suffix)
@@ -821,6 +824,10 @@ class ParsingConfig(BaseModel):
             leaked_suffixes=tuple(self.leaked_suffixes),
             uncensored_suffixes=tuple(self.uncensored_suffixes),
             subtitle_suffixes=tuple(self.subtitle_suffixes),
+            cracked_display_name=self.cracked_display_name,
+            leaked_display_name=self.leaked_display_name,
+            uncensored_display_name=self.uncensored_display_name,
+            subtitle_display_name=self.subtitle_display_name,
         )
 
 

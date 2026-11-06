@@ -15,6 +15,7 @@ from ..parsing.file_info import (
     DEFINITION_VALUES,
     MOSAIC_NATURE_VALUES,
     FileInfo,
+    FileMarkerRules,
     mosaic_nature,
     split_number,
 )
@@ -185,6 +186,8 @@ class Parser:
             raise ValueError("路径模板里有空的占位符")
         name_part, sep, map_part = body.partition("|")
         name = name_part.strip()
+        if name.lower() in ("sub?", "mosaic?"):
+            name = name.lower()
         if not name:
             raise ValueError("路径模板里有空的占位符")
         mapping = _parse_placeholder_mapping(name, map_part) if sep else ()
@@ -201,25 +204,40 @@ def _lookup(name: str, variables: dict[str, str]) -> str:
     return _UNKNOWN
 
 
-def _resolve(node: _Placeholder, variables: dict[str, str]) -> str:
+def _resolve(node: _Placeholder, variables: dict[str, str], marker_rules: FileMarkerRules | None = None) -> str:
     """查出值后按映射改写. 空源只在写出 `{name|=缺省}` 时变成非空, 否则仍为空, 可选组省略."""
     raw = _lookup(node.name, variables)
     mapped = dict(node.mapping)
-    return mapped.get(raw, raw)
+    if raw in mapped:
+        return mapped[raw]
+    if marker_rules is not None:
+        if node.name == "sub?" and raw:
+            return _safe(marker_rules.subtitle_display_name) or ""
+        if node.name == "mosaic?":
+            names = {
+                "cracked": marker_rules.cracked_display_name,
+                "leaked": marker_rules.leaked_display_name,
+                "uncensored": marker_rules.uncensored_display_name,
+            }
+            if raw in names:
+                return _safe(names[raw]) or ""
+    return raw
 
 
-def _render_nodes(nodes: Sequence[_Node], variables: dict[str, str]) -> str:
+def _render_nodes(
+    nodes: Sequence[_Node], variables: dict[str, str], marker_rules: FileMarkerRules | None = None
+) -> str:
     parts: list[str] = []
     for node in nodes:
         if isinstance(node, _Literal):
             parts.append(node.text)
         elif isinstance(node, _Placeholder):
-            parts.append(_resolve(node, variables))
+            parts.append(_resolve(node, variables, marker_rules))
         else:
             slots = _direct_placeholders(node.children)
-            if slots and all(_resolve(item, variables) == "" for item in slots):
+            if slots and all(_resolve(item, variables, marker_rules) == "" for item in slots):
                 continue
-            inner = _render_nodes(node.children, variables)
+            inner = _render_nodes(node.children, variables, marker_rules)
             parts.append(f"[{inner}]" if node.wrap else inner)
     return "".join(parts)
 
@@ -369,6 +387,7 @@ class TemplateContext:
     variables: dict[str, str]
     library_root: Path | None = None
     dest: Path | None = None
+    marker_rules: FileMarkerRules | None = None
 
     @classmethod
     def from_mapping(cls, variables: dict[str, str]) -> TemplateContext:
@@ -385,12 +404,13 @@ class TemplateContext:
         cd: int | None = None,
         actor_genders: Mapping[str, ActorGender] | None = None,
         library_root: Path | None = None,
+        marker_rules: FileMarkerRules | None = None,
     ) -> TemplateContext:
         built = _build_variables(metadata, ext, source_path, file_info, cd, actor_genders, library_root)
         variables = cast(dict[str, str], {**built})
         # {dir} 是 {raw_dir} 的别名, 不下发 schema.
         variables["dir"] = built["raw_dir"]
-        return cls(variables=variables, library_root=library_root)
+        return cls(variables=variables, library_root=library_root, marker_rules=marker_rules)
 
     def apply_video(self, dest: Path, library_root: Path) -> None:
         self.dest = dest
@@ -464,7 +484,7 @@ class TemplateEngine:
         return _nodes_use_placeholder(self.tree, name)
 
     def fill(self, ctx: TemplateContext) -> str:
-        return _render_nodes(self.tree, ctx.variables)
+        return _render_nodes(self.tree, ctx.variables, ctx.marker_rules)
 
     def clean(self, filled: str, ctx: TemplateContext) -> str:
         return filled
@@ -478,7 +498,7 @@ class PathEngine(TemplateEngine):
 
     def fill(self, ctx: TemplateContext) -> str:
         variables = {name: _clip_field(value) if name in _CLIP_KEYS else value for name, value in ctx.variables.items()}
-        return _render_nodes(self.tree, variables)
+        return _render_nodes(self.tree, variables, ctx.marker_rules)
 
     def clean(self, filled: str, ctx: TemplateContext) -> str:
         return _normalize_path_segments(filled, keep_absolute=_template_keeps_absolute(self.source, ctx.variables))

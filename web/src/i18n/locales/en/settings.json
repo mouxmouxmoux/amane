@@ -887,19 +887,35 @@
     "parsing": {
       "cracked_suffixes": {
         "label": "Cracked Suffixes",
-        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+        "description": "Letter or number markers, including Chinese text, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
       },
       "leaked_suffixes": {
         "label": "Leaked Suffixes",
-        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+        "description": "Letter or number markers, including Chinese text, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
       },
       "uncensored_suffixes": {
         "label": "Uncensored Suffixes",
-        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+        "description": "Letter or number markers, including Chinese text, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
       },
       "subtitle_suffixes": {
         "label": "Subtitle Suffixes",
-        "description": "Alphanumeric markers starting with a letter, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+        "description": "Letter or number markers, including Chinese text, matched after a hyphen in filenames. An empty list disables these suffixes. Changes apply to subsequent operations; refresh the library to update existing files."
+      },
+      "cracked_display_name": {
+        "label": "Cracked display name",
+        "description": "Output for {MOSAIC?} in path templates. Leave empty to omit the marker. Explicit template mappings take priority."
+      },
+      "leaked_display_name": {
+        "label": "Leaked display name",
+        "description": "Output for {MOSAIC?} in path templates. Leave empty to omit the marker. Explicit template mappings take priority."
+      },
+      "uncensored_display_name": {
+        "label": "Uncensored display name",
+        "description": "Output for {MOSAIC?} in path templates. Leave empty to omit the marker. Explicit template mappings take priority."
+      },
+      "subtitle_display_name": {
+        "label": "Subtitle display name",
+        "description": "Output for {SUB?} in path templates. Leave empty to omit the marker. Explicit template mappings take priority."
       }
     }
   }

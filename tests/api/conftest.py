@@ -58,7 +58,7 @@ def make_app(
     files_dir.mkdir(parents=True, exist_ok=True)
     hot = hot_for_tests(hot)
     config_path = data_dir / "config.toml"
-    config_path.write_text(tomli_w.dumps(hot.model_dump(mode="json", exclude_none=True)))
+    config_path.write_text(tomli_w.dumps(hot.model_dump(mode="json", exclude_none=True)), encoding="utf-8")
     copy_schema(data_dir / "amane.db")
 
     return create_app()

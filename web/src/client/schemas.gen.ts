@@ -3667,14 +3667,32 @@ export const HotSettingsSchema = {
                 cracked_suffixes: [
                     'U',
                     'UC',
-                    'LTX'
+                    'LTX',
+                    '破解',
+                    '克破',
+                    'CRACKED'
                 ],
-                leaked_suffixes: [],
-                uncensored_suffixes: [],
+                cracked_display_name: 'cracked',
+                leaked_suffixes: [
+                    '流出',
+                    '留出',
+                    'LEAKED'
+                ],
+                leaked_display_name: 'leaked',
+                uncensored_suffixes: [
+                    '無碼',
+                    '无码',
+                    'UNCENSORED'
+                ],
+                uncensored_display_name: 'uncensored',
                 subtitle_suffixes: [
                     'C',
-                    'UC'
-                ]
+                    'UC',
+                    '字幕',
+                    '中文',
+                    '中字'
+                ],
+                subtitle_display_name: 'C'
             }
         },
         worker: {
@@ -5027,6 +5045,17 @@ export const MediaFileResponseSchema = {
         path: {
             type: 'string',
             title: 'Path'
+        },
+        organized_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Organized Path'
         },
         oshash: {
             anyOf: [
@@ -6523,12 +6552,22 @@ export const ParsingConfigSchema = {
             type: 'array',
             title: 'Cracked Suffixes'
         },
+        cracked_display_name: {
+            type: 'string',
+            title: 'Cracked Display Name',
+            default: 'cracked'
+        },
         leaked_suffixes: {
             items: {
                 type: 'string'
             },
             type: 'array',
             title: 'Leaked Suffixes'
+        },
+        leaked_display_name: {
+            type: 'string',
+            title: 'Leaked Display Name',
+            default: 'leaked'
         },
         uncensored_suffixes: {
             items: {
@@ -6537,12 +6576,22 @@ export const ParsingConfigSchema = {
             type: 'array',
             title: 'Uncensored Suffixes'
         },
+        uncensored_display_name: {
+            type: 'string',
+            title: 'Uncensored Display Name',
+            default: 'uncensored'
+        },
         subtitle_suffixes: {
             items: {
                 type: 'string'
             },
             type: 'array',
             title: 'Subtitle Suffixes'
+        },
+        subtitle_display_name: {
+            type: 'string',
+            title: 'Subtitle Display Name',
+            default: 'C'
         }
     },
     additionalProperties: false,

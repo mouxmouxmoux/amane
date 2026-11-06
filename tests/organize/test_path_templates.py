@@ -28,7 +28,7 @@ from amane.organize.template import (
     TemplateContext,
     actress_names,
 )
-from amane.parsing import ContentType, parse_file_info
+from amane.parsing import ContentType, FileMarkerRules, parse_file_info
 
 
 @pytest.fixture
@@ -1294,3 +1294,38 @@ def test_resolve_paths_uses_actress_placeholder(media: Path) -> None:
         actor_genders={"F": ActorGender.FEMALE, "M": ActorGender.MALE},
     )
     assert result.video == media / "F" / "ABC-123.mp4"
+
+
+@pytest.mark.parametrize(
+    ("source", "template", "name", "expected"),
+    [
+        ("MIDV-123-UC.mp4", "{MOSAIC?}[-{SUB?}]", "破解", "破解-中字"),
+        ("MIDV-123-UC.mp4", "{mosaic?|cracked=U}[-{sub?|C=中文}]", "破解", "U-中文"),
+        ("MIDV-123-UC.mp4", "[-{mosaic?}][-{sub?}]", "", "-中字"),
+        ("MIDV-123.mp4", "[-{sub?}]", "破解", ""),
+        ("MIDV-123-UC.mp4", "{mosaic?}", "../破解\\目录:*?\n", ".. 破解 目录"),
+        ("MIDV-123-流出.mp4", "{mosaic?}", "破解", "流出"),
+        ("MIDV-123-无码.mp4", "{mosaic?}", "破解", "无码"),
+    ],
+)
+def test_marker_display_names(source: str, template: str, name: str, expected: str) -> None:
+    rules = FileMarkerRules(
+        cracked_display_name=name,
+        leaked_display_name="流出",
+        uncensored_display_name="无码",
+        subtitle_display_name="中字",
+    )
+    ctx = TemplateContext.from_metadata(_meta(), file_info=parse_file_info(source), marker_rules=rules)
+    assert PathEngine(template).render(ctx) == expected
+
+
+def test_marker_display_name_cannot_escape_library(media: Path) -> None:
+    library = Library(name="markers", path=str(media), video_template="{mosaic?}/{number}.{ext}")
+    with pytest.raises(ValueError, match="路径越界"):
+        resolve_paths(
+            library,
+            _meta(),
+            ext="mp4",
+            file_info=parse_file_info("MIDV-123-U.mp4"),
+            marker_rules=FileMarkerRules(cracked_display_name=".."),
+        )

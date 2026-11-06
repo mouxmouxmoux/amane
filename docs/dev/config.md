@@ -56,7 +56,7 @@ Worker 替换不取消运行中任务: `_rebuild()` 构建新 worker 后旧 work
 
 ## 文件名标记 (Hot)
 
-`src/amane/config/manager.py::ParsingConfig.to_marker_rules` 将 `parsing` 转换为不可变规则. `src/amane/db/repository.py::Repository.marker_rules` 经启动期注入的读取函数取得当前配置; 文件登记、路径更新、整理与删除清单显式传递快照, 解析模块不读取配置. 保存不回填存量行; 回填边界见 [data-model.md](data-model.md).
+`src/amane/config/manager.py::ParsingConfig.to_marker_rules` 将 `parsing` 转换为不可变规则. `src/amane/db/repository.py::Repository.marker_rules` 经启动期注入的读取函数取得当前配置; 文件登记、路径更新、整理与删除清单显式传递快照, 解析模块不读取配置. 路径模板经同一快照读取显示名称, 显式映射仍匹配规范值并优先输出; 整理与清理清单必须传递同一规则. 保存不回填存量行; 回填边界见 [data-model.md](data-model.md).
 
 ## TOML 持久化
 

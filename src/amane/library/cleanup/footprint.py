@@ -202,6 +202,7 @@ def _add_products(
             source_path=source,
             file_info=parse_file_info(item.path, marker_rules=marker_rules),
             safe_dirs=None,
+            marker_rules=marker_rules,
         )
     except ValueError as exc:
         notices.append(FootprintNotice(FootprintNoticeKind.TEMPLATE_ERROR, path=source, detail=str(exc)))

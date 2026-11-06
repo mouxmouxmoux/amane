@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..enums import ActorGender, MoveMode
-from ..parsing import FileInfo, parse_file_info
+from ..parsing import FileInfo, FileMarkerRules, parse_file_info
 from ..utils.threads import in_thread
 from .file import PlaceOutcome, execute_organize
 from .path_templates import resolve_subtitle_path
@@ -65,6 +65,7 @@ def place_subtitles(
     link_dir: Path | None = None,
     link_name: str | None = None,
     actor_genders: Mapping[str, ActorGender] | None = None,
+    marker_rules: FileMarkerRules | None = None,
 ) -> list[SubtitleConflict]:
     """失败与冲突只记日志, 不抛异常; 返回被占用而跳过的字幕源与其目标."""
     conflicted: list[SubtitleConflict] = []
@@ -82,6 +83,7 @@ def place_subtitles(
             file_info=file_info,
             safe_dirs=safe_dirs,
             actor_genders=actor_genders,
+            marker_rules=marker_rules,
         )
         result = execute_organize.sync(
             source=sub,

@@ -55,10 +55,14 @@ class MosaicNature(StrEnum):
 
 @dataclass(frozen=True)
 class FileMarkerRules:
-    cracked_suffixes: tuple[str, ...] = ("U", "UC", "LTX")
-    leaked_suffixes: tuple[str, ...] = ()
-    uncensored_suffixes: tuple[str, ...] = ()
-    subtitle_suffixes: tuple[str, ...] = ("C", "UC")
+    cracked_suffixes: tuple[str, ...] = ("U", "UC", "LTX", "破解", "克破", "CRACKED")
+    leaked_suffixes: tuple[str, ...] = ("流出", "留出", "LEAKED")
+    uncensored_suffixes: tuple[str, ...] = ("無碼", "无码", "UNCENSORED")
+    subtitle_suffixes: tuple[str, ...] = ("C", "UC", "字幕", "中文", "中字")
+    cracked_display_name: str = "cracked"
+    leaked_display_name: str = "leaked"
+    uncensored_display_name: str = "uncensored"
+    subtitle_display_name: str = "C"
 
 
 @dataclass(frozen=True)
@@ -691,7 +695,21 @@ def _detect_cd_from_parent(parent: str) -> int | None:
 
 
 def _matches_suffix(basename: str, suffixes: tuple[str, ...]) -> bool:
-    return any(re.search(rf"-{re.escape(suffix)}(?![A-Z0-9])", basename) for suffix in suffixes)
+    for suffix in suffixes:
+        if any(ord(char) > 127 for char in suffix):
+            if suffix in basename:
+                return True
+            continue
+        if re.search(
+            rf"(?:^|[-_ .\[\]【】()（）])(?![A-Z0-9]+-\d+(?![A-Z0-9])){re.escape(suffix)}(?=$|[-_ .\[\]【】()（）])",
+            basename,
+            re.IGNORECASE,
+        ):
+            return True
+        # ASCII 标记要求短横线边界, 避免 U 命中番号或更长英文标记.
+        if re.search(rf"-(?![A-Z0-9]+-\d+(?![A-Z0-9])){re.escape(suffix)}(?![^\W_])", basename, re.IGNORECASE):
+            return True
+    return False
 
 
 def _detect_subtitle(basename: str, rules: FileMarkerRules) -> bool:
@@ -702,11 +720,11 @@ def _detect_subtitle(basename: str, rules: FileMarkerRules) -> bool:
 
 def _detect_mosaic(basename: str, rules: FileMarkerRules) -> Mosaic | None:
     """basename 已大写; 多标记优先级见 docs/dev/data-model.md."""
-    if re.search(r"破解|克破|CRACKED", basename) or _matches_suffix(basename, rules.cracked_suffixes):
+    if _matches_suffix(basename, rules.cracked_suffixes):
         return Mosaic.CRACKED
-    if re.search(r"流出|LEAKED", basename) or _matches_suffix(basename, rules.leaked_suffixes):
+    if _matches_suffix(basename, rules.leaked_suffixes):
         return Mosaic.LEAKED
-    if re.search(r"無碼|无码|UNCENSORED", basename) or _matches_suffix(basename, rules.uncensored_suffixes):
+    if _matches_suffix(basename, rules.uncensored_suffixes):
         return Mosaic.UNCENSORED
     return None
 

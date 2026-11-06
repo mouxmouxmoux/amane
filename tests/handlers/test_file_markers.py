@@ -82,10 +82,21 @@ async def test_reprojection_preserves_renamed_path(repo: Repository) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("display_names", [False, True])
 async def test_organize_and_footprint_share_rules(
-    repo: Repository, resource_store: ResourceStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    repo: Repository,
+    resource_store: ResourceStore,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    display_names: bool,
 ) -> None:
-    rules = FileMarkerRules(cracked_suffixes=("XYZ",), subtitle_suffixes=("XYZ",))
+    config = HotSettings()
+    if display_names:
+        config.parsing.cracked_display_name = "破解"
+        config.parsing.subtitle_display_name = "中字"
+    config.parsing.cracked_suffixes = ["XYZ"]
+    config.parsing.subtitle_suffixes = ["XYZ"]
+    rules = config.parsing.to_marker_rules()
     monkeypatch.setattr(repo, "_get_marker_rules", lambda: rules)
     root = tmp_path / "lib"
     root.mkdir()
@@ -101,9 +112,9 @@ async def test_organize_and_footprint_share_rules(
     metadata = await repo.upsert_metadata(number="MIDV-123")
     assert metadata.id is not None
     media = await repo.create_media_file(library.id, path=str(video), metadata_id=metadata.id)
-    result = await apply_file_operations(repo, media.id, metadata, HotSettings(), resource_store)
+    result = await apply_file_operations(repo, media.id, metadata, config, resource_store)
     assert result is not None and result.outcome is PlaceOutcome.PLACED
-    nfo = root / "MIDV-123-cracked-C.nfo"
+    nfo = root / ("MIDV-123-破解-中字.nfo" if display_names else "MIDV-123-cracked-C.nfo")
     assert nfo.is_file()
     outcome = await build_footprint(
         library=library,

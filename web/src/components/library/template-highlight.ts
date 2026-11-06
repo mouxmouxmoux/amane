@@ -27,8 +27,14 @@ export interface TemplateToken {
   text: string;
 }
 
-function nameKind(raw: string, catalog: TemplateCatalog | undefined): TemplateTokenKind {
+function normalizeName(raw: string): string {
   const name = raw.trim();
+  const lower = name.toLowerCase();
+  return lower === "sub?" || lower === "mosaic?" ? lower : name;
+}
+
+function nameKind(raw: string, catalog: TemplateCatalog | undefined): TemplateTokenKind {
+  const name = normalizeName(raw);
   if (name === "") {
     return "error";
   }
@@ -44,7 +50,7 @@ function mapKeyKind(
   catalog: TemplateCatalog | undefined,
 ): TemplateTokenKind {
   const key = raw.trim();
-  const allowed = catalog?.get(placeholder);
+  const allowed = catalog?.get(normalizeName(placeholder));
   if (allowed == null || allowed.length === 0) {
     return "mapKey";
   }

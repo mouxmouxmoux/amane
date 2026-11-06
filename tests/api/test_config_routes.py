@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 from amane.config import HotSettings
-from amane.parsing import Mosaic
+from amane.db.models import Metadata
+from amane.organize import resolve_paths
+from amane.parsing import Mosaic, parse_file_info
 from tests.api.conftest import hot_for_tests
 
 if TYPE_CHECKING:
@@ -22,17 +24,31 @@ class TestConfigHttp:
         repo = app.state.runtime.repo
         library = await repo.create_library(name="markers", path=str(safe_path))
         assert library.id is not None
-        response = await client.patch("config", json={"parsing": {"cracked_suffixes": ["-xyz"]}})
+        response = await client.patch(
+            "config", json={"parsing": {"cracked_suffixes": ["-xyz"], "cracked_display_name": "破解"}}
+        )
         assert response.status_code == 200
         assert response.json()["parsing"]["cracked_suffixes"] == ["XYZ"]
         media = await repo.create_media_file(library.id, path="MIDV-123-XYZ.mp4")
         assert media.mosaic is Mosaic.CRACKED
+        library.video_template = "{number}[-{MOSAIC?}].{ext}"
+        paths = resolve_paths(
+            library,
+            Metadata(number="MIDV-123"),
+            ext="mp4",
+            file_info=parse_file_info(media.path, marker_rules=repo.marker_rules()),
+            marker_rules=repo.marker_rules(),
+        )
+        assert paths.video.name == "MIDV-123-破解.mp4"
         assert [item.id for item in await repo.list_media_files(mosaic=Mosaic.CRACKED)] == [media.id]
         before = (await client.get("config")).json()
         invalid = await client.patch("config", json={"parsing": {"cracked_suffixes": [".*"]}})
         assert invalid.status_code == 422
         assert "cracked_suffixes" in invalid.json()["detail"]
         assert (await client.get("config")).json() == before
+        invalid = await client.patch("config", json={"parsing": {"cracked_display_name": []}})
+        assert invalid.status_code == 422
+        assert "cracked_display_name" in invalid.json()["detail"]
         response = await client.patch("config", json={"parsing": {"cracked_suffixes": []}})
         assert response.status_code == 200
         assert (await repo.create_media_file(library.id, path="MIDV-456-XYZ.mp4")).mosaic is None

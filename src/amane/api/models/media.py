@@ -12,6 +12,7 @@ class MediaFileResponse(BaseModel):
     id: int
     library_id: int
     path: str
+    organized_path: str | None = None
     oshash: str | None = None
     size: int | None = None
     duration: float | None = None
