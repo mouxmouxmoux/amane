@@ -379,6 +379,28 @@ def test_parse_file_info(case: _Case) -> None:
         assert info.content_type == case.content_type
 
 
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        ("MKBD-S03 KIRARI 03：一之濑亚美莉（蓝光版）.mp4", "MKBD-S03"),
+        ("MKBD-S89 KIRARI 89 因为爱死了性爱   前田香织 (蓝光版).mp4", "MKBD-S89"),
+        ("MKBD-S118 KIRARI 118 轻松就能三连发的极品女优：立花美凉.mp4", "MKBD-S118"),
+        ("mkbd-s03-CD2.mp4", "MKBD-S03"),
+        ("MKBD-S03/video.mp4", "MKBD-S03"),
+        ("MKBD-S KIRARI 03.mp4", "KIRARI-03"),
+        ("MKBD-SX KIRARI 03.mp4", "KIRARI-03"),
+        ("KIRARI 03.mp4", "KIRARI-03"),
+    ],
+)
+def test_mkbd_catalog_number(filename: str, expected: str) -> None:
+    info = parse_file_info(filename)
+    assert info.number == expected
+    assert info.prefix == expected.split("-")[0]
+    assert info.content_type == (ContentType.UNCENSORED if expected.startswith("MKBD-") else ContentType.CENSORED)
+    if "/" not in filename:
+        assert extract_number(filename) == expected
+
+
 # --- 无路径: 同一 parse_file_info 的字段包装 ---
 
 PREFIX_SUFFIX_CASES: list[tuple[str, str, str]] = [

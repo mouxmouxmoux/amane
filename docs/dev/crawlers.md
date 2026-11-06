@@ -43,7 +43,7 @@ CrawlerFactory (缓存实例)
 
 | 来源路径 | 番号来源 | 是否重写 |
 |------|------------|------------|
-| 库扫描 / 按 `media_id` 刮削 | `parse_file_info(path).number` | **会.** 路径解析命中已知形态时改写成目录号 (插入 `-`、拆分前导零、FC2/HEYZO 族规则、字母大写、剥 CD / 字幕尾标). 规则只在 `parsing/file_info.py`, 本文不列出规则表 |
+| 库扫描 / 按 `media_id` 刮削 | `parse_file_info(path).number` | **会.** 已知形态归一为目录号; 识别优先级见 `src/amane/parsing/file_info.py::_match`, 字符串预处理见 `_prepare`. |
 | 用户任务只填 `number` | submission 字符串 | **不会.** 原样写入 payload; 空 `content_type` 只调用 `infer_content_type`. |
 | 按 `media_id` 同时填写 `number` | submission 字符串 | **不会.** 空白 `number` 视为未填写, 回退到只按路径解析. |
 | RSS 自动入队 | `extract_number` | **会** (与路径同一套已知形态); 未命中则没有番号, **不会**把标题原文当番号. 源上设置了 `number_pattern` 时只采用该正则, 见 [feeds.md](feeds.md) |
