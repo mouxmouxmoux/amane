@@ -90,6 +90,10 @@ Worker 替换不取消运行中任务: `_rebuild()` 构建新 worker 后旧 work
 
 建图对编译后站点链的消费见 [task-system.md](task-system.md), 默认表取舍见 [content-routes.md](content-routes.md).
 
+## `media_server` (Hot)
+
+单服务器, `url` 与 `api_key` 齐备才启用; `kind` 标识 Emby / Jellyfin, 两家接口同源. 客户端不读 `network.proxy`, 单请求超时固定 30s; `api_key` 与其他密钥一样进 secrets 脱敏. 配置变更经 `_rebuild()` 重建 handler 后对新任务生效, 运行中的推送继续使用旧客户端.
+
 ## `actor_scraping` (Hot)
 
 演员刮削与影片 `scraping` 分 section: 影片管线不读演员站列表, 演员任务也不读 `field_priority` / `field_blacklist`. 契约 (实现见 `ActorScrapeHandler` / `aggregate.actor`):
@@ -97,9 +101,16 @@ Worker 替换不取消运行中任务: `_rebuild()` 构建新 worker 后旧 work
 - **`profile_sites`** / **`image_sites`**: 资料来源与头像来源的顺序 (单源字段填空优先级, 头像优先于资料来源附图). 默认与 schema 枚举都是注册表里声明了对应能力的插入序, 不在配置层手写站点名单.
 - **`download_images`**: 是否经 ResourceStore 缓存头像 (URL 仍为远端 locator).
 - **`auto_scrape`**: 影片刮削成功后自动链式入队该片演员的 `ACTOR_SCRAPE` 任务; 见 [task-system.md](task-system.md).
+- **`auto_push`**: 演员刮削成功后链式入队该演员的 `ACTOR_PUSH`; `media_server` 未配置时静默跳过, 推送失败不回溯父任务.
 - **`gfriends_repo`**: gFriends 仓库 URL, Filetree 缓存在 `data_dir`.
 
 跨角色站点写入会被 section validator 拒绝. 发请求前仍按 `Actor.gender` 与站点性别覆盖再过滤 (见 [crawlers.md](crawlers.md)).
+
+## `semantic` (Hot)
+
+只有 `auto_maintain`: 打开且视觉塔就绪时, 图片变化的条目立即增量重算且视觉塔常驻; 否则只删变动图片的旧向量, 等下次索引重建.
+
+模型身份是代码常量 (`src/amane/semantic/models.py` 的 `DEFAULT_SPEC`), 不进配置: 换模型 = 换清单, 旧模型的向量按清单的 `(name, version)` 保留. 两个塔分别判断就绪 — 检索要 tokenizer + 文本塔, 索引要视觉塔, `/semantic/diagnostics` 的 `search_ready` / `index_ready` 各对应一个; 检索未就绪时 503. 只有 `SEMANTIC_INDEX` 任务会下载缺失文件到 `{data_dir}/models/` (断点续传 + SHA256 校验), 检索与增量维护只认本地文件. 后端按平台决定 (macOS Core ML, 其余 ONNX Runtime); 分发精度: 视觉塔只发 fp16 (量化后余弦明显掉点), 文本塔 Core ML 用 8bit palettization (p8)、ONNX 用 fp16. 文本塔空闲超时后释放.
 
 ## `watermark` (Hot)
 

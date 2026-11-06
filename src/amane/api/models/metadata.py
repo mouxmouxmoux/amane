@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from ...db import Metadata
+from ...db.embeddings import EmbeddingKind
 from ...enums import ActorGender, MetadataField
 from ...handlers import CacheKind
 from ...parsing import ContentType, Mosaic
@@ -99,9 +100,21 @@ PartialMetadata = create_partial_model(
 )
 
 
+class SemanticHitInfo(BaseModel):
+    """语义检索的命中图片: 与列表项按 id 对应, 不扩展 ``MetadataResponse`` 本身."""
+
+    id: int
+    kind: EmbeddingKind
+    resource_url: str
+    """命中图片的资源定位串; 剧照由前端经资源代理渲染."""
+    similarity: float
+    """同一次查询内的排序分; 跨查询不可比."""
+
+
 class MetadataListResponse(BaseModel):
     items: list[MetadataResponse]
     total: int
+    semantic_hits: list[SemanticHitInfo] = Field(default_factory=list)
 
 
 class MetadataDetailResponse(BaseModel):
@@ -120,6 +133,15 @@ class MetadataDetailResponse(BaseModel):
 
 class MergeRequest(BaseModel):
     selections: dict[str, str] = Field(description="field_name -> source_key 映射")
+
+
+class MetadataMergeEntriesRequest(BaseModel):
+    target_id: int = Field(description="合并目标 Metadata ID; 其字段与已有站点快照保持不变")
+    source_ids: list[int] = Field(min_length=1, description="待合并的 Metadata ID 列表; 按顺序补入 raw 快照")
+    rescrape: bool = Field(
+        default=False,
+        description="合并后按当前优先级对目标番号入队 SCRAPE, 复用 raw 缓存重新聚合字段",
+    )
 
 
 class MetadataLocksRequest(BaseModel):

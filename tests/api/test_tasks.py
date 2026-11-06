@@ -35,6 +35,16 @@ class TestSubmitTask:
     ):
         """只验提交与校验; 独占 worker 以免后台任务与本用例的写并发抢 SQLite 写锁."""
         lib = await repo.create_library(name="t", path=str(safe_path), recursive=False, patterns=["*.mp4"])
+        await repo.upsert_metadata(number="AP-1", actors=["Alice"])
+        actors = await repo.get_actors_by_names(["Alice"])
+        actor_id = actors[0].id
+        assert actor_id is not None
+        push = await client.post("tasks", json={"type": "actor_push", "actor_ids": [actor_id], "force": True})
+        assert push.status_code == 202
+        assert push.json()["payload"]["actor_ids"] == [actor_id]
+        assert push.json()["payload"]["force"] is True
+        assert (await client.post("tasks", json={"type": "actor_push", "actor_ids": "x"})).status_code == 422
+
         refresh = await client.post("tasks", json={"type": "refresh", "library_id": lib.id})
         assert refresh.status_code == 202
         payload = refresh.json()["payload"]
@@ -171,6 +181,15 @@ class TestSubmitTask:
         covered = set(schema.json()["discriminator"]["mapping"].keys())
         missing = set(TaskType) - covered
         assert not missing, f"TaskSubmission missing: {missing}. Add submission model to TaskSubmission union."
+
+    @pytest.mark.asyncio(loop_scope="function")
+    async def test_submit_semantic_benchmark(self, client: AsyncClient, stop_worker: None):
+        response = await client.post("tasks", json={"type": "semantic_benchmark"})
+
+        assert response.status_code == 202
+        body = response.json()
+        assert body["type"] == "semantic_benchmark"
+        assert body["payload"] == {}
 
     @pytest.mark.asyncio(loop_scope="function")
     async def test_submit_organize_creates_new_when_active(

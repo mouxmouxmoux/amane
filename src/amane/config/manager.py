@@ -554,12 +554,12 @@ def _require_browser_engine(
 
 
 class BrowserConfig(BaseModel):
+    backend: BrowserBackendName = BrowserBackendName.OFF
     bsk_path: str | None = Field(
         default=None,
         json_schema_extra={"x-widget": "PathPicker", "x-path-type": "file"},
     )
-    """``bsk`` CLI 的路径; 桌面壳的 PATH 不含登录 shell 条目, 留空时从 PATH / ``AMANE_BSK_PATH`` 查找."""
-    backend: BrowserBackendName = BrowserBackendName.OFF
+    """``bsk`` CLI 的路径; 桌面壳的 PATH 不含登录 shell 条目, 留空时从 PATH 查找."""
     timeout: int = Field(default=30000, ge=5000, le=120000)
     """页面导航默认超时 (毫秒); 单次渲染可覆盖."""
     solver_url: str = Field(default="http://127.0.0.1:8191", pattern=r"^https?://.+")
@@ -709,8 +709,8 @@ class AgentConfig(BaseModel):
     """单次回复的输出上限. 超过模型上限时上游拒绝请求."""
 
     rate_limit: float = Field(default=2.0, ge=0.1, le=100)
-    sql_timeout_ms: int = Field(default=1000, ge=50, le=60_000, json_schema_extra={"x-hidden": True})
-    """只读 SQL 默认超时 (毫秒). 超过须用户批准放宽."""
+    sql_timeout_ms: int = Field(default=5000, ge=50, le=60_000, json_schema_extra={"x-hidden": True})
+    """只读 SQL 执行超时 (毫秒), 不计建连; 到期即中断语句."""
 
     result_cache_ttl_s: int = Field(default=3600, ge=60, le=86_400, json_schema_extra={"x-hidden": True})
     """过期后按 SQL 重新执行."""
@@ -731,6 +731,36 @@ class AgentConfig(BaseModel):
         return data
 
 
+class MediaServerConfig(BaseModel):
+    """Emby / Jellyfin 人物推送; url 与 api_key 齐备才启用."""
+
+    kind: Literal["emby", "jellyfin"] = Field(default="jellyfin", description="媒体服务器类型")
+    url: str | None = Field(default=None, description="服务器地址, 含协议、端口与可选子路径")
+    api_key: str | None = Field(default=None, description="管理员 API Key")
+    verify_tls: bool = Field(default=True, description="校验 HTTPS 证书; 自签名证书可关闭")
+
+    @field_validator("url")
+    @classmethod
+    def _normalize_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().rstrip("/")
+        if not normalized.startswith(("http://", "https://")):
+            raise ValueError("media_server.url 必须以 http:// 或 https:// 开头")
+        return normalized
+
+    @field_validator("api_key")
+    @classmethod
+    def _normalize_api_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.url and self.api_key)
+
+
 class ActorScrapingConfig(BaseModel):
     """资料来源顺序填空, 头像来源优先."""
 
@@ -747,6 +777,9 @@ class ActorScrapingConfig(BaseModel):
     download_images: bool = True
     auto_scrape: bool = True
     """影片刮削成功后自动入队该片演员的 ACTOR_SCRAPE; 已刮过的 Actor 跳过."""
+
+    auto_push: bool = Field(default=False, description="演员刮削成功后自动将该演员推送到媒体服务器")
+    """媒体服务器未配置时静默跳过."""
 
     gfriends_repo: str = Field(default="https://github.com/gfriends/gfriends", description="gFriends GitHub 仓库 URL")
 
@@ -789,6 +822,12 @@ class ParsingConfig(BaseModel):
             uncensored_suffixes=tuple(self.uncensored_suffixes),
             subtitle_suffixes=tuple(self.subtitle_suffixes),
         )
+
+
+class SemanticConfig(BaseModel):
+    """封面与剧照语义检索. 模型身份由 ``semantic/models.py`` 的清单决定, 不随配置变化."""
+
+    auto_maintain: bool = Field(default=False, description="条目图片变化后立即增量索引; 打开时视觉模型常驻")
 
 
 class HotSettings(BaseModel):
@@ -839,10 +878,12 @@ class HotSettings(BaseModel):
         return data
 
     scraping: ScrapingConfig = ScrapingConfig()
+    media_server: MediaServerConfig = MediaServerConfig()
     actor_scraping: ActorScrapingConfig = ActorScrapingConfig()
     agent: AgentConfig = AgentConfig()
     network: NetworkConfig = NetworkConfig()
     sr: SrConfig = SrConfig()
+    semantic: SemanticConfig = SemanticConfig()
     watermark: WatermarkConfig = WatermarkConfig()
     llm: LLMConfig = LLMConfig()
     r18: R18Config = R18Config()

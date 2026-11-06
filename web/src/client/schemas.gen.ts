@@ -158,6 +158,103 @@ export const ActorLocksRequestSchema = {
     description: '整体替换锁定字段集合.'
 } as const;
 
+export const ActorPushResultSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            const: 'actor_push',
+            title: 'Type',
+            default: 'actor_push'
+        },
+        requested: {
+            type: 'integer',
+            title: 'Requested'
+        },
+        matched: {
+            type: 'integer',
+            title: 'Matched'
+        },
+        updated: {
+            type: 'integer',
+            title: 'Updated'
+        },
+        images: {
+            type: 'integer',
+            title: 'Images'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
+        },
+        not_found: {
+            type: 'integer',
+            title: 'Not Found'
+        },
+        no_image: {
+            type: 'integer',
+            title: 'No Image'
+        },
+        missing: {
+            type: 'integer',
+            title: 'Missing'
+        },
+        failed: {
+            type: 'integer',
+            title: 'Failed'
+        },
+        failures: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Failures'
+        }
+    },
+    type: 'object',
+    required: [
+        'requested',
+        'matched',
+        'updated',
+        'images',
+        'skipped',
+        'not_found',
+        'no_image',
+        'missing',
+        'failed',
+        'failures'
+    ],
+    title: 'ActorPushResult'
+} as const;
+
+export const ActorPushSubmissionSchema = {
+    properties: {
+        actor_ids: {
+            items: {
+                type: 'integer'
+            },
+            type: 'array',
+            title: 'Actor Ids',
+            description: '要推送的演员 ID; 空表示全部演员'
+        },
+        force: {
+            type: 'boolean',
+            title: 'Force',
+            description: '覆盖媒体服务器上已有的头像与人物字段',
+            default: false
+        },
+        type: {
+            type: 'string',
+            const: 'actor_push',
+            title: 'Type'
+        }
+    },
+    type: 'object',
+    required: [
+        'type'
+    ],
+    title: 'ActorPushSubmission'
+} as const;
+
 export const ActorResponseSchema = {
     properties: {
         id: {
@@ -492,6 +589,12 @@ export const ActorScrapingConfigSchema = {
             title: 'Auto Scrape',
             default: true
         },
+        auto_push: {
+            type: 'boolean',
+            title: 'Auto Push',
+            description: '演员刮削成功后自动将该演员推送到媒体服务器',
+            default: false
+        },
         gfriends_repo: {
             type: 'string',
             title: 'Gfriends Repo',
@@ -802,7 +905,7 @@ export const AgentConfigSchema = {
             maximum: 60000,
             minimum: 50,
             title: 'Sql Timeout Ms',
-            default: 1000,
+            default: 5000,
             'x-hidden': true
         },
         result_cache_ttl_s: {
@@ -1251,6 +1354,10 @@ export const BrowserBackendReportResponseSchema = {
 
 export const BrowserConfigSchema = {
     properties: {
+        backend: {
+            $ref: '#/components/schemas/BrowserBackendName',
+            default: 'off'
+        },
         bsk_path: {
             anyOf: [
                 {
@@ -1263,10 +1370,6 @@ export const BrowserConfigSchema = {
             title: 'Bsk Path',
             'x-path-type': 'file',
             'x-widget': 'PathPicker'
-        },
-        backend: {
-            $ref: '#/components/schemas/BrowserBackendName',
-            default: 'off'
         },
         timeout: {
             type: 'integer',
@@ -1943,6 +2046,15 @@ export const DownloadableResourceSchema = {
     ],
     title: 'DownloadableResource',
     description: '影片附属资源类型: 刮削写入 Resource, 整理时按库配置复制到库路径.'
+} as const;
+
+export const EmbeddingKindSchema = {
+    type: 'string',
+    enum: [
+        'cover',
+        'still'
+    ],
+    title: 'EmbeddingKind'
 } as const;
 
 export const ErrorRowSchema = {
@@ -3416,6 +3528,13 @@ export const HotSettingsSchema = {
                 }
             }
         },
+        media_server: {
+            $ref: '#/components/schemas/MediaServerConfig',
+            default: {
+                kind: 'jellyfin',
+                verify_tls: true
+            }
+        },
         actor_scraping: {
             $ref: '#/components/schemas/ActorScrapingConfig',
             default: {
@@ -3431,6 +3550,7 @@ export const HotSettingsSchema = {
                 ],
                 download_images: true,
                 auto_scrape: true,
+                auto_push: false,
                 gfriends_repo: 'https://github.com/gfriends/gfriends'
             }
         },
@@ -3442,7 +3562,7 @@ export const HotSettingsSchema = {
                 model: 'gpt-4o-mini',
                 max_tokens: 128000,
                 rate_limit: 2,
-                sql_timeout_ms: 1000,
+                sql_timeout_ms: 5000,
                 result_cache_ttl_s: 3600,
                 result_cache_max_entries: 64,
                 history_ttl_s: 3600,
@@ -3476,6 +3596,12 @@ export const HotSettingsSchema = {
                 preset: 'waifu-photo-2x',
                 output_format: 'jpg',
                 tta: false
+            }
+        },
+        semantic: {
+            $ref: '#/components/schemas/SemanticConfig',
+            default: {
+                auto_maintain: false
             }
         },
         watermark: {
@@ -5125,6 +5251,54 @@ export const MediaListResponseSchema = {
     title: 'MediaListResponse'
 } as const;
 
+export const MediaServerConfigSchema = {
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'emby',
+                'jellyfin'
+            ],
+            title: 'Kind',
+            description: '媒体服务器类型',
+            default: 'jellyfin'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Url',
+            description: '服务器地址, 含协议、端口与可选子路径'
+        },
+        api_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Api Key',
+            description: '管理员 API Key'
+        },
+        verify_tls: {
+            type: 'boolean',
+            title: 'Verify Tls',
+            description: '校验 HTTPS 证书; 自签名证书可关闭',
+            default: true
+        }
+    },
+    type: 'object',
+    title: 'MediaServerConfig',
+    description: 'Emby / Jellyfin 人物推送; url 与 api_key 齐备才启用.'
+} as const;
+
 export const MediaSortFieldSchema = {
     type: 'string',
     enum: [
@@ -5401,6 +5575,13 @@ export const MetadataListResponseSchema = {
         total: {
             type: 'integer',
             title: 'Total'
+        },
+        semantic_hits: {
+            items: {
+                $ref: '#/components/schemas/SemanticHitInfo'
+            },
+            type: 'array',
+            title: 'Semantic Hits'
         }
     },
     type: 'object',
@@ -5425,6 +5606,37 @@ export const MetadataLocksRequestSchema = {
     type: 'object',
     title: 'MetadataLocksRequest',
     description: '整体替换锁定字段集合.'
+} as const;
+
+export const MetadataMergeEntriesRequestSchema = {
+    properties: {
+        target_id: {
+            type: 'integer',
+            title: 'Target Id',
+            description: '合并目标 Metadata ID; 其字段与已有站点快照保持不变'
+        },
+        source_ids: {
+            items: {
+                type: 'integer'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Source Ids',
+            description: '待合并的 Metadata ID 列表; 按顺序补入 raw 快照'
+        },
+        rescrape: {
+            type: 'boolean',
+            title: 'Rescrape',
+            description: '合并后按当前优先级对目标番号入队 SCRAPE, 复用 raw 缓存重新聚合字段',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'target_id',
+        'source_ids'
+    ],
+    title: 'MetadataMergeEntriesRequest'
 } as const;
 
 export const MetadataPartialSchema = {
@@ -7163,7 +7375,8 @@ export const RoutineTypeSchema = {
         'cleanup',
         'upscale',
         'r18_import',
-        'rescrape'
+        'rescrape',
+        'semantic_index'
     ],
     title: 'RoutineType'
 } as const;
@@ -7636,6 +7849,9 @@ export const ScheduleCreateRequestSchema = {
                 },
                 {
                     $ref: '#/components/schemas/RescrapeSubmission'
+                },
+                {
+                    $ref: '#/components/schemas/SemanticIndexSubmission'
                 }
             ],
             title: 'Submission',
@@ -7645,6 +7861,7 @@ export const ScheduleCreateRequestSchema = {
                     cleanup: '#/components/schemas/CleanupSubmission',
                     r18_import: '#/components/schemas/R18ImportSubmission',
                     rescrape: '#/components/schemas/RescrapeSubmission',
+                    semantic_index: '#/components/schemas/SemanticIndexSubmission',
                     upscale: '#/components/schemas/UpscaleSubmission'
                 }
             }
@@ -7717,6 +7934,9 @@ export const ScheduleResponseSchema = {
                 },
                 {
                     $ref: '#/components/schemas/RescrapeSubmission'
+                },
+                {
+                    $ref: '#/components/schemas/SemanticIndexSubmission'
                 }
             ],
             title: 'Payload',
@@ -7726,6 +7946,7 @@ export const ScheduleResponseSchema = {
                     cleanup: '#/components/schemas/CleanupSubmission',
                     r18_import: '#/components/schemas/R18ImportSubmission',
                     rescrape: '#/components/schemas/RescrapeSubmission',
+                    semantic_index: '#/components/schemas/SemanticIndexSubmission',
                     upscale: '#/components/schemas/UpscaleSubmission'
                 }
             }
@@ -8215,6 +8436,392 @@ export const SelectionSummaryResponseSchema = {
     ],
     title: 'SelectionSummaryResponse',
     description: '展开结果. 条目自库根展开 (库外产物挂在根下), 面板按分页接口读取.'
+} as const;
+
+export const SemanticBenchmarkResultSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            const: 'semantic_benchmark',
+            title: 'Type',
+            default: 'semantic_benchmark'
+        },
+        backend: {
+            type: 'string',
+            title: 'Backend'
+        },
+        model: {
+            type: 'string',
+            title: 'Model'
+        },
+        images_per_second: {
+            type: 'number',
+            title: 'Images Per Second'
+        },
+        query_ms: {
+            type: 'number',
+            title: 'Query Ms'
+        },
+        load_ms: {
+            type: 'number',
+            title: 'Load Ms'
+        },
+        samples: {
+            type: 'integer',
+            title: 'Samples'
+        },
+        measured_at: {
+            type: 'string',
+            title: 'Measured At'
+        }
+    },
+    type: 'object',
+    required: [
+        'backend',
+        'model',
+        'images_per_second',
+        'query_ms',
+        'load_ms',
+        'samples',
+        'measured_at'
+    ],
+    title: 'SemanticBenchmarkResult'
+} as const;
+
+export const SemanticBenchmarkSubmissionSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            const: 'semantic_benchmark',
+            title: 'Type'
+        }
+    },
+    type: 'object',
+    required: [
+        'type'
+    ],
+    title: 'SemanticBenchmarkSubmission'
+} as const;
+
+export const SemanticConfigSchema = {
+    properties: {
+        auto_maintain: {
+            type: 'boolean',
+            title: 'Auto Maintain',
+            description: '条目图片变化后立即增量索引; 打开时视觉模型常驻',
+            default: false
+        }
+    },
+    type: 'object',
+    title: 'SemanticConfig',
+    description: '封面与剧照语义检索. 模型身份由 ``semantic/models.py`` 的清单决定, 不随配置变化.'
+} as const;
+
+export const SemanticDiagnosticsResponseSchema = {
+    properties: {
+        enabled: {
+            type: 'boolean',
+            title: 'Enabled'
+        },
+        backend: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Backend'
+        },
+        current_model: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Current Model'
+        },
+        current_model_label: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Current Model Label'
+        },
+        backend_label: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Backend Label'
+        },
+        text_loaded: {
+            type: 'boolean',
+            title: 'Text Loaded',
+            default: false
+        },
+        vision_loaded: {
+            type: 'boolean',
+            title: 'Vision Loaded',
+            default: false
+        },
+        search_ready: {
+            type: 'boolean',
+            title: 'Search Ready',
+            default: false
+        },
+        index_ready: {
+            type: 'boolean',
+            title: 'Index Ready',
+            default: false
+        },
+        download_size: {
+            type: 'integer',
+            title: 'Download Size',
+            default: 0
+        },
+        vision_size: {
+            type: 'integer',
+            title: 'Vision Size',
+            default: 0
+        },
+        text_size: {
+            type: 'integer',
+            title: 'Text Size',
+            default: 0
+        },
+        model_path: {
+            type: 'string',
+            title: 'Model Path',
+            default: ''
+        },
+        model_bytes: {
+            type: 'integer',
+            title: 'Model Bytes',
+            default: 0
+        },
+        embeddings_path: {
+            type: 'string',
+            title: 'Embeddings Path',
+            default: ''
+        },
+        embeddings_bytes: {
+            type: 'integer',
+            title: 'Embeddings Bytes',
+            default: 0
+        },
+        indexed_metadata: {
+            type: 'integer',
+            title: 'Indexed Metadata',
+            default: 0
+        },
+        indexed_at: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Indexed At'
+        },
+        models: {
+            additionalProperties: {
+                $ref: '#/components/schemas/SemanticModelCounts'
+            },
+            type: 'object',
+            title: 'Models',
+            default: {}
+        }
+    },
+    type: 'object',
+    required: [
+        'enabled'
+    ],
+    title: 'SemanticDiagnosticsResponse',
+    description: '用户手册的诊断数据: 运行时状态、路径、占用与索引统计; 不触发下载或加载.'
+} as const;
+
+export const SemanticHitInfoSchema = {
+    properties: {
+        id: {
+            type: 'integer',
+            title: 'Id'
+        },
+        kind: {
+            $ref: '#/components/schemas/EmbeddingKind'
+        },
+        resource_url: {
+            type: 'string',
+            title: 'Resource Url'
+        },
+        similarity: {
+            type: 'number',
+            title: 'Similarity'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'kind',
+        'resource_url',
+        'similarity'
+    ],
+    title: 'SemanticHitInfo',
+    description: '语义检索的命中图片: 与列表项按 id 对应, 不扩展 ``MetadataResponse`` 本身.'
+} as const;
+
+export const SemanticIndexResultSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            const: 'semantic_index',
+            title: 'Type',
+            default: 'semantic_index'
+        },
+        scanned: {
+            type: 'integer',
+            title: 'Scanned'
+        },
+        indexed: {
+            type: 'integer',
+            title: 'Indexed'
+        },
+        skipped: {
+            type: 'integer',
+            title: 'Skipped'
+        },
+        missing: {
+            type: 'integer',
+            title: 'Missing'
+        },
+        failed: {
+            type: 'integer',
+            title: 'Failed'
+        }
+    },
+    type: 'object',
+    required: [
+        'scanned',
+        'indexed',
+        'skipped',
+        'missing',
+        'failed'
+    ],
+    title: 'SemanticIndexResult'
+} as const;
+
+export const SemanticIndexSubmissionSchema = {
+    properties: {
+        type: {
+            type: 'string',
+            const: 'semantic_index',
+            title: 'Type'
+        },
+        limit: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Limit',
+            description: '单次最多处理的条目数; 空表示全库'
+        },
+        force: {
+            type: 'boolean',
+            title: 'Force',
+            description: '忽略未变化的跳过判据, 全部重算',
+            default: false
+        },
+        kinds: {
+            items: {
+                $ref: '#/components/schemas/EmbeddingKind'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Kinds'
+        }
+    },
+    type: 'object',
+    required: [
+        'type'
+    ],
+    title: 'SemanticIndexSubmission'
+} as const;
+
+export const SemanticModelCountsSchema = {
+    properties: {
+        count: {
+            type: 'integer',
+            title: 'Count'
+        },
+        covers: {
+            type: 'integer',
+            title: 'Covers'
+        },
+        stills: {
+            type: 'integer',
+            title: 'Stills'
+        }
+    },
+    type: 'object',
+    required: [
+        'count',
+        'covers',
+        'stills'
+    ],
+    title: 'SemanticModelCounts',
+    description: '单个模型的向量条数, 按来源拆分.'
+} as const;
+
+export const SemanticStatusResponseSchema = {
+    properties: {
+        enabled: {
+            type: 'boolean',
+            title: 'Enabled',
+            default: false
+        },
+        available: {
+            type: 'boolean',
+            title: 'Available',
+            default: false
+        },
+        search_ready: {
+            type: 'boolean',
+            title: 'Search Ready',
+            default: false
+        },
+        has_embeddings: {
+            type: 'boolean',
+            title: 'Has Embeddings',
+            default: false
+        },
+        download_size: {
+            type: 'integer',
+            title: 'Download Size',
+            default: 0
+        }
+    },
+    type: 'object',
+    title: 'SemanticStatusResponse',
+    description: '语义检索的轻量状态: 页面据此决定入口与提示, 不读取存储统计.'
 } as const;
 
 export const SiteConfigSchema = {
@@ -8754,12 +9361,22 @@ export const TaskBatchSubmitRequestSchema = {
                         $ref: '#/components/schemas/ActorScrapeSubmission'
                     },
                     {
+                        $ref: '#/components/schemas/ActorPushSubmission'
+                    },
+                    {
                         $ref: '#/components/schemas/RescrapeSubmission'
+                    },
+                    {
+                        $ref: '#/components/schemas/SemanticIndexSubmission'
+                    },
+                    {
+                        $ref: '#/components/schemas/SemanticBenchmarkSubmission'
                     }
                 ],
                 discriminator: {
                     propertyName: 'type',
                     mapping: {
+                        actor_push: '#/components/schemas/ActorPushSubmission',
                         actor_scrape: '#/components/schemas/ActorScrapeSubmission',
                         cleanup: '#/components/schemas/CleanupSubmission',
                         delete: '#/components/schemas/DeleteSubmission',
@@ -8769,6 +9386,8 @@ export const TaskBatchSubmitRequestSchema = {
                         rescrape: '#/components/schemas/RescrapeSubmission',
                         scan_invalid: '#/components/schemas/ScanInvalidSubmission',
                         scrape: '#/components/schemas/ScrapeSubmission',
+                        semantic_benchmark: '#/components/schemas/SemanticBenchmarkSubmission',
+                        semantic_index: '#/components/schemas/SemanticIndexSubmission',
                         upscale: '#/components/schemas/UpscaleSubmission'
                     }
                 }
@@ -9251,12 +9870,22 @@ export const TaskResponseSchema = {
                             $ref: '#/components/schemas/ActorScrapeResult'
                         },
                         {
+                            $ref: '#/components/schemas/ActorPushResult'
+                        },
+                        {
                             $ref: '#/components/schemas/RescrapeResult'
+                        },
+                        {
+                            $ref: '#/components/schemas/SemanticIndexResult'
+                        },
+                        {
+                            $ref: '#/components/schemas/SemanticBenchmarkResult'
                         }
                     ],
                     discriminator: {
                         propertyName: 'type',
                         mapping: {
+                            actor_push: '#/components/schemas/ActorPushResult',
                             actor_scrape: '#/components/schemas/ActorScrapeResult',
                             cleanup: '#/components/schemas/CleanupResult',
                             delete: '#/components/schemas/DeleteResult',
@@ -9266,6 +9895,8 @@ export const TaskResponseSchema = {
                             rescrape: '#/components/schemas/RescrapeResult',
                             scan_invalid: '#/components/schemas/ScanInvalidResult',
                             scrape: '#/components/schemas/ScrapeResult',
+                            semantic_benchmark: '#/components/schemas/SemanticBenchmarkResult',
+                            semantic_index: '#/components/schemas/SemanticIndexResult',
                             upscale: '#/components/schemas/UpscaleResult'
                         }
                     }
@@ -9323,7 +9954,10 @@ export const TaskTypeSchema = {
         'actor_scrape',
         'rescrape',
         'scan_invalid',
-        'delete'
+        'delete',
+        'semantic_index',
+        'semantic_benchmark',
+        'actor_push'
     ],
     title: 'TaskType'
 } as const;

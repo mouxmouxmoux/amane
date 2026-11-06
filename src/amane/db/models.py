@@ -42,6 +42,9 @@ class TaskType(StrEnum):
     RESCRAPE = "rescrape"
     SCAN_INVALID = "scan_invalid"
     DELETE = "delete"
+    SEMANTIC_INDEX = "semantic_index"
+    SEMANTIC_BENCHMARK = "semantic_benchmark"
+    ACTOR_PUSH = "actor_push"
 
 
 class RoutineType(StrEnum):
@@ -49,6 +52,7 @@ class RoutineType(StrEnum):
     UPSCALE = "upscale"
     R18_IMPORT = "r18_import"
     RESCRAPE = "rescrape"
+    SEMANTIC_INDEX = "semantic_index"
 
 
 class TaskStatus(StrEnum):
