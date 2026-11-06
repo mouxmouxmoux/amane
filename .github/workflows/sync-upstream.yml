@@ -1,0 +1,58 @@
+name: Sync upstream and build
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge upstream default branch
+    if: github.event.repository.fork == true && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      sha: ${{ steps.sync.outputs.sha }}
+    steps:
+      - name: Sync fork
+        id: sync
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: repository } = await github.rest.repos.get({ owner, repo });
+            const branch = repository.default_branch;
+            const { data: before } = await github.rest.repos.getBranch({ owner, repo, branch });
+            // GitHub 在存在合并冲突时拒绝同步, 保留 fork 分支.
+            await github.rest.repos.mergeUpstream({ owner, repo, branch });
+            const { data: after } = await github.rest.repos.getBranch({ owner, repo, branch });
+            core.setOutput('changed', before.commit.sha !== after.commit.sha);
+            core.setOutput('sha', after.commit.sha);
+            await core.summary
+              .addHeading('上游同步')
+              .addRaw(`分支: ${branch}\n\n提交: ${after.commit.sha}\n\n`)
+              .addRaw(before.commit.sha === after.commit.sha ? '上游无新增提交, 跳过构建.' : '同步完成, 开始桌面构建.')
+              .write();
+
+  # GITHUB_TOKEN 的推送不会触发其它 push workflow, 因此直接调用构建.
+  windows:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    uses: ./.github/workflows/windows-app.yml
+    with:
+      ref: ${{ needs.sync.outputs.sha }}
+
+  macos:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    uses: ./.github/workflows/macos-app.yml
+    with:
+      ref: ${{ needs.sync.outputs.sha }}

@@ -68,6 +68,8 @@ macOS UI argv (`AmaneUI --base-url http://127.0.0.1:PORT [--token <token>] [--wa
 
 ## 打包
 
+Fork 的自动同步入口为 `.github/workflows/sync-upstream.yml`: 合并上游默认分支后, 直接调用两个桌面 workflow 并传入同步后的提交 SHA; `GITHUB_TOKEN` 的推送不会触发其它 push workflow. 合并冲突时停止同步, 无新增提交时跳过构建; 产物保存在该次 Actions 的 artifacts 中.
+
 Windows 的完整入口为 `scripts/package_windows.ps1`, 经 `just windows-app` 同步依赖、生成接口、构建前端并打包; 缺少 pnpm / just 时经 npm / uv 临时运行. `scripts/build_windows_app.ps1` 仅组装已构建的前端与服务.
 
 macOS: `scripts/build_macos_app.sh` (`just macos-app`), 需要 Swift 工具链 — PyInstaller 打成 onedir 后再组装 `.app`, `AmaneUI` 包成 `Contents/Resources/AmaneUI.app`, Info.plist 补 `LSUIElement` / `LSMultipleInstancesProhibited` / `CFBundleIconFile`. Windows: `scripts/build_windows_app.ps1` (`just windows-app`), **必须在 Windows 上运行** (PyInstaller 与 Native AOT 都不能从 macOS 交叉), 需要 .NET 8 SDK + 能链 Native AOT 的 MSVC.

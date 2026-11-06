@@ -5,6 +5,12 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: 构建的提交
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,6 +28,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v9.0.0
