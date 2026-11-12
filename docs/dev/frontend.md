@@ -51,11 +51,11 @@
 
 ## 海报栅格
 
-片库 grid 短边锚定 (`layout="adaptive"`, 行切分见 `lib/media/adaptive.ts`), 演员墙与分类详情列宽相等. 两者都靠图片加载后的自然尺寸取比例: 缓存在 `lib/media/poster-image.ts`, 键是卡片实际请求的地址, 跨路由复用, 首屏混合比例的页面因此只重排一次. `ProxyImage` 的每个渲染分支都必须转发 `onLoad` / `onError`, 否则拿不到比例, 失败也不退化为番号占位.
+片库 grid 短边锚定 (`layout="adaptive"`, 行切分见 `lib/media/adaptive.ts`), 演员墙与分类详情列宽相等. 两者都按图片加载后的自然尺寸取比例, 缓存在 `lib/media/poster-image.ts`, 键是卡片实际请求的地址, 跨路由复用, 首屏混合比例的页面因此只重排一次. 自适应栅格另需复用上次测得的容器宽度: 行切分依赖它, 首帧没有行就没有高度, 路由回退的滚动恢复会被限制为列表顶部. `ProxyImage` 的每个渲染分支都必须转发 `onLoad` / `onError`, 否则拿不到比例, 失败也不退化为番号占位.
 
 ## 窄屏
 
-**视口高度统一经 `--amane-vh`**: 默认 `100vh`, 入口检测到 `dvh` 时替换成 `100dvh`. 禁止在样式或组件属性里写死 `dvh` — Chromium < 108 的 WebView 会整条丢弃含它的声明; 第三方样式 (Mantine) 里的 `dvh` 由构建期替换成同一变量.
+**视口高度统一经 `--amane-vh`**: 默认 `100vh`, 入口检测到 `dvh` 时替换成 `100dvh`. 禁止在样式或组件属性里写死 `dvh` — Chromium < 108 的 WebView 会整条丢弃含它的声明; 第三方样式 (Mantine) 里的 `dvh` 由构建期替换成同一变量. 浮层另取 `--amane-vv-top` / `--amane-vvh` (入口按 `visualViewport.offsetTop` 与 `height` 实时写入; 主题里 Drawer 的定位容器上沿与高度即取它们): 软键盘只缩小视觉视口, 布局视口是否跟着缩、是否被上推由内核决定, 贴布局视口绝对定位的浮层会随键盘跳动, 或在键盘上方留出与上推量同高的空白.
 
 **CSS 数学表达式只能经 `style` 写入**, 禁止作为 Mantine 样式属性的值: 样式属性把字符串中的裸数字视为像素并除以 16 转成 rem, 于是 `calc()` 内出现长度相乘, 该声明在计算时判为无效并退回初始值. 只有以 `calc(` / `clamp(` 开头的字符串原样透传.
 
@@ -84,7 +84,7 @@ Settings、任务提交、定时创建、metadata 编辑共用 `components/schem
 | 数据 | 存储位置 |
 |------|--------|
 | 列表 / 详情 | TanStack Query (invalidate) |
-| 高频流 (进度 / 日志) | Zustand |
+| 高频流 (进度 / 日志) | Zustand; 任务日志历史在展开详情时经 `GET /tasks/{id}/log` 取, 与实时条目按记录去重合并 (`lib/task/log.ts`) |
 | 对话增量 | AG-UI 事件流 (与 WS 正交) |
 | 导航态 (筛选 / 排序 / page / view) | URL search |
 | 列表密度 / 列宽 / 主题 / 播放源顺序 / 列表默认参数 | Zustand (`amane-web`) |

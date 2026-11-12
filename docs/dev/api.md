@@ -23,7 +23,7 @@ HTTP 宿主与 DI 在 `app.py` / `deps.py` / `middleware.py` / `spa.py`; `routes
 | `actors` | `/actors` | 演员浏览 (含用户标签筛选)、人物 PATCH / 锁、批量性别与批量清空、用户标签挂载; 单条刮削与单条清空已弃用; 身份治理经由 facets |
 | `facets` | `/facets` | 分类目录与规则 |
 | `comments` | `/comments` | 评论修改与删除; 新建经由 metadata |
-| `tasks` | `/tasks` | 队列 + `POST /batch`(操作既有) + `POST /batch/submit`(批量入队) + worker 暂停领队 + 终态 `record` |
+| `tasks` | `/tasks` | 队列 + `POST /batch`(操作既有) + `POST /batch/submit`(批量入队) + worker 暂停领队 + 终态 `record` + 日志尾部 |
 | `schedules` | `/schedules` | cron CRUD + trigger |
 | `config` | `/config` | HotSettings + schema |
 | `plugins` | `/plugins` | 插件目录、安装 / 卸载 / 热扫描、配置 schema 与启用状态 |
@@ -40,8 +40,8 @@ HTTP 宿主与 DI 在 `app.py` / `deps.py` / `middleware.py` / `spa.py`; `routes
 
 OpenAPI 列出参数, 不表达组合语义:
 
-- metadata 同 kind 的筛选: 关联类 AND / 标量类 OR; 跨 kind 始终 AND. `saved_query_id` 与其它筛选项 AND; `data` 实体不可作列表筛选 (400). 关联文件相位筛选与 `has_files` 一样 AND (布尔项 True = 至少一份具备, False = 没有任何一份具备), 列表项带聚合 `file_phase`. 见 [data-model.md](data-model.md) / [agent.md](agent.md).
-- GET `/media` 的相位 query 作用在单行列上; `uncensored` 与 `content_type` 是例外: 两者都按所属条目判定 (`uncensored` = 条目无码或这一份带无码标记, `content_type` = 条目类型), 未绑定条目的文件只看自身标记、不命中任何类型; 布尔侧按空值安全比较. 未知 `definition` → 422; 相位列不纳入 PATCH.
+- metadata 同 kind 的筛选: 关联类 AND / 标量类 OR; 跨 kind 始终 AND. `saved_query_id` 与其它筛选项 AND; `data` 实体不可作列表筛选 (400). 关联文件相位筛选与 `has_files` 一样 AND (布尔项 True = 至少一份具备, False = 没有任何一份具备), 列表项带聚合 `file_phase`. `library_id` 属关联文件维度: 同一筛选内多库 OR, 条目在任一选中库中有文件即命中, 无文件条目不命中; 见 [data-model.md](data-model.md) / [agent.md](agent.md). 八组 id 参数每组上限 100、合计上限 200, 超限 422; 关联类每组聚合为一条子查询, 不随 id 数增加条件.
+- GET `/media` 的相位 query 作用在单行列上; `uncensored` 与 `content_type` 是例外: 两者都按所属条目判定 (`uncensored` = 条目无码或这一份带无码标记, `content_type` = 条目类型), 未绑定条目的文件只看自身标记、不命中任何类型; 布尔侧按空值安全比较. 未知 `definition` → 422; `SD` / `HD` 是 `480p` / `720p` 的别名 (大小写不敏感, web 侧同名映射在 `web/src/lib/exhaustive-maps.ts`, 改一处须同步另一处), 归一后照常筛选; 相位列不纳入 PATCH.
 - `/media` 的 `organized_path` 按所属库模板即时渲染; 条目与演员去重批量读取, 缺少条目或无法渲染时为空.
 - 手动裁切基准是源图**当前本地文件**像素 (含就地超分后尺寸): 海报以 `thumb_urls[0]` 为源并替换 `poster_urls`, 演员头像以 `image_urls[0]` 为源并前插保留原图; 库路径海报不受影响. locator 见 [data-model.md](data-model.md).
 - `PUT /metadata/{id}/locks` 与 `PUT /actors/{id}/locks` 整体替换锁定字段集合; 锁语义见 [data-model.md](data-model.md)「字段锁定」.
@@ -51,7 +51,7 @@ OpenAPI 列出参数, 不表达组合语义:
 - `/network/browser` 探测浏览器后端能否用于本实例: 本地引擎查模块是否在分发包内, `bsk` 调 CLI 的 `status` (HTTP 200 恒定, 结论就是响应体), Solver 只做一次 `sessions.list` 协议握手, 不渲染页面 — 真实抓取由 `/network/check` 覆盖.
 - `/network/check` 的探测范围 = 当前热配置真正会请求的来源 (各类型路由的并集 + 演员资料来源 / 头像来源), 省略 `source_ids` 即全量. `source_id` 是 `str` 而非 `SiteName` 枚举 (第三方来源是 `namespace.local`, 且来源集合随插件增删变化), 未知值无法用 schema 拒绝, 不存在的 ID 计入条目返回 `SKIPPED`. 逐来源的失败只进条目, 端点始终 200 — 探测结果本身就是响应体; `reason` 只在失败时给出, `skip_reason` 只在未探测时给出, `detail` 是语言中立的补充说明 (界面原样渲染, 不翻译). 探测不进入任务队列, 也不写入站点 outcome (那是刮削任务的记录).
 - 评论正文先去除首尾空白再校验长度, 全空白与超过 10000 字符均为 422. `updated_at` 晚于 `created_at` 表示正文被编辑过: PATCH 提交与库中一致的正文不写库, 也不刷新 `updated_at`, 前端据此判定「已编辑」; 排序由前端在详情响应上完成, 端点不提供 order 参数; 正文按 Markdown 存储与返回, 服务端不解析.
-- `/metadata` 的语义参数: `semantic_query` 出现时接管排序, 整句只编码一次, 封面与剧照共用一次点积; 候选集来自同一套筛选 (含 `search` 与 `saved_query_id`), 无筛选时扫全索引. `semantic_kind=all|cover|still` 选参与排名的图片来源; `sort_by` / `order` 被忽略, `offset` / `limit` (上限 200) 直接分页, `total` 是候选条目总数 (按条目去重). `items` 仍是 `MetadataResponse`, 命中图放在并列的 `semantic_hits` (`id` / `kind` / `resource_url` / `similarity`), 同一条目只保留名次最高的那张图; `similarity` 只在同一次查询内可比, 不设阈值; 同分按条目 id 升序, 翻页稳定. 模型未就绪时仅该参数出现时 503; 索引生命周期见 [semantic.md](semantic.md).
+- `/metadata` 的语义参数: `semantic_query` 出现时接管排序, 整句只编码一次, 封面与剧照共用一次点积; 候选集来自同一套筛选 (含 `search` 与 `saved_query_id`), 无筛选时扫全索引. `semantic_kind=all|cover|still` 选参与排名的图片来源; `sort_by` / `order` 被忽略, `offset` / `limit` (上限 200) 直接分页, `total` 是候选条目总数 (按条目去重). `items` 用同一列表项模型, 命中图放在并列的 `semantic_hits` (`id` / `kind` / `resource_url` / `similarity`), 同一条目只保留名次最高的那张图; `similarity` 只在同一次查询内可比, 不设阈值; 同分按条目 id 升序, 翻页稳定. 模型未就绪时仅该参数出现时 503; 索引生命周期见 [semantic.md](semantic.md).
 - `/files`: 路径解析为非严格 (虚拟 / 网络挂载盘无法规范化查询时按字面兜底), 相对 `path` 经 `base` 参数解析 (缺省 = 首个安全目录). 响应含规范 `path` (resolve 后的绝对路径), 前端文件浏览器以它为面包屑的唯一权威形态, 不做分段拼接.
 
 ## 依赖注入
@@ -66,19 +66,21 @@ OpenAPI 列出参数, 不表达组合语义:
 
 `TokenAuthMiddleware` 与 `LoggingMiddleware` 都是 `BaseHTTPMiddleware`: 它交给下游的是包装过的 `receive`, 必须真正挂起等待才会收到 `http.disconnect`, 因此 `Request.is_disconnected()` (立刻取消式探测) 在本栈内恒为 `False`; 需要感知客户端离开的长响应改用 `DisconnectSignal` (见 [plugins.md](plugins.md)).
 
+**浏览器来源**: cookie 认证的非安全方法要求 `Sec-Fetch-Site` 为 `same-origin` / `none`, `same-site` / `cross-site` 一律 403; 缺该头时退回 `Origin` — 无 `Origin` (脚本) 放行, 否则须与 `Host` 同 host:port 或命中 `AMANE_TRUSTED_ORIGINS` (未配置时信任开发默认 `http://localhost:5173` / `http://127.0.0.1:5173`, 因为 Vite 代理改写了 `Host`). Bearer 请求与只读方法不检查, `/ws` 握手同规则. CORS 只在 token 开启时全开 (`*`, 无凭据); token 关闭时只允许 `AMANE_CORS_ORIGINS` (默认空 = 同源可用, 预检不通过). 该检查按页面同源判定, 不防 DNS rebinding. 相关实现: `middleware.py::browser_source_allowed` / `::CORSPolicyMiddleware`.
+
 ## 约定
 
 **错误**: `HTTPException(detail=中文)`. 路径校验位于 `support/path_validation.py` (存在 / 类型 / `safe_dirs` → 400 / 403 / 404; `ALLOW_ALL` 时跳过边界层). `/files` 的失败映射: 不存在 → 404, 不在 `safe_dirs` → 403, 空名单 → 500, `os.scandir` 的 `OSError` (含网络盘挂载失效) → 500 + strerror detail, `PermissionError` → 403. 错误日志统一由 LoggingMiddleware 打点 (见 [observability.md](observability.md)), handler 内不自行打印.
 
-**列表**: `media` / `metadata` / `tasks` / `facets` / `actors` 同构 `offset` + `limit` + `sort_by` + `order`, 响应 `{items, total}`; `sort_by` 是各资源 `*SortField` 枚举, 显式映射到列或计算表达式 (片库评分按 `scores` 首值, 与响应 `score` 同源), 禁止反射列名. 清理清单的 `cleanup/inventory/nodes` 同样分页, 顺序由树决定, 因此没有排序参数 (见 [task-system.md](task-system.md)). `libraries` / `schedules` / `feeds` 全量无分页. `GET /actors` 列表项不填简介 / 别名 / 用户标签 / 源字典 / `raw` (详情仍全量); `GET /tasks` 与其 `/children` 同样不带 `payload` 与 `result`, 展开单个任务时才取详情.
+**列表**: `media` / `metadata` / `tasks` / `facets` / `actors` 同构 `offset` + `limit` + `sort_by` + `order`, 响应 `{items, total}`; `sort_by` 是各资源 `*SortField` 枚举, 显式映射到列或计算表达式 (片库评分按 `scores` 首值, 与响应 `score` 同源), 禁止反射列名. 清理清单的 `cleanup/inventory/nodes` 同样分页, 顺序由树决定, 因此没有排序参数 (见 [task-system.md](task-system.md)). `libraries` / `schedules` / `feeds` 全量无分页. `GET /metadata` 列表项不含 `raw` / `field_sources` (详情才有); `GET /actors` 列表项不填简介 / 别名 / 用户标签 / 源字典 / `raw` (详情仍全量); `GET /tasks` 与其 `/children` 同样不带 `payload` 与 `result`, 展开单个任务时才取详情.
 
 **状态码**: 创建 201、任务入队 202、无返回体 204; 空 PATCH / 非法 cron → 422; 任务状态不允许的 record → 409.
 
 **资源缓存**: `/resources/{hash}` 与 `/proxy` 因就地超分 URL 不变, 不可 immutable — `Cache-Control: public, no-cache` + `content_hash` ETag. proxy 上游失败 502, 进程内负缓存 15 分钟 (不纳入配置), 同 URL singleflight; 刮削下载不经由该缓存. 图片 token 的 proxy 请求只从缓存读取: 未命中返回 404, 不经过负缓存与 singleflight, 也不发起请求.
 
-**资源出站**: 第三方 URL 进入下载通道前过 `net/egress` — 协议白名单对每次请求生效, 地址判定由调用点选择 (`/proxy` 只在缓存未命中时判定, 命中直出; 刮削下载允许私网以支持 LAN 镜像), 重定向逐跳复查. 不防御 DNS rebinding: 校验与实际连接是两次解析, 窗口内改派的地址不会被发现. fake-IP 只放行 Clash / Mihomo / sing-box 常用的 IPv4 / IPv6 基准测试段, 用户自定义段按非公网拒绝. 浏览器渲染通道不经该客户端, 不受这条判定约束.
+**资源出站**: 第三方 URL 进入下载通道前经过 `net/egress` — 协议白名单对每次请求生效, 地址判定由调用点选择 (`/proxy` 只在缓存未命中时判定; 刮削下载允许内网以支持 LAN 镜像), 重定向逐跳复查. 地址判定只拒绝指向本机与内网的段, fake-IP 与 DNS 封堵应答照常放行, 连接失败按上游失败处理. 判定依据本机解析, 不防御 DNS rebinding, 也无法约束由代理解析目标的路径 (HTTP 代理、`socks5h`、TUN); 因此 `/proxy` 另按内容兜底: 不论是否命中缓存, 只回放按内容判定为图片的文件, 下载到非图片时不写入资源记录. 浏览器渲染通道不经该客户端, 不受这条判定约束.
 
-**资源响应类型**: 按文件头判定, 扩展名白名单兜底, 都不命中时附件下载 + `nosniff`. 记录里的 MIME 由 URL 后缀推出, 不能决定浏览器按什么类型解释.
+**资源响应类型**: 按文件头判定, 扩展名白名单兜底, 都不命中时附件下载 + `nosniff`. 记录里的媒体类型不参与该判定.
 
 - **批量**: 命名分两层 — `batch` 后接**主体** (不接即资源本身), 动作进 body 的 `action` 当且仅当同一主体下的动作共享同一份参数 (`/tasks/batch` 的 cancel / delete / retry, `/facets/{kind}/batch` 的收藏, `/feeds/{id}/items/batch`, 两条 `batch/user-tags` 的 attach / detach); 参数形状不同或只有单动作时动作进路径 (`/metadata/batch/{delete,scrape}`, `/media/batch/delete`, `/actors/batch/{gender,clear-person}`, `/tasks/batch/submit`). 不存在的 id 计入 `missing` 而不报 404, 请求内重复条目计入 `skipped`, 参数级错误 (403 路径越界 / 422 参数互斥) 仍是整请求错误, 其余条目照常处理 (不是 all-or-nothing 事务); 计数口径为「实际处理数 + `missing` (+ `skipped`) = 请求条目数」. 单条写入复用所属批量端点 (单元素列表).
 - **批量落库**: 一个批量请求不在服务端逐条提交 — 实体批量写各自一次事务与一次 `IN` 查询; 任务批量入队 (`/tasks/batch/submit`) 逐项与 `POST /tasks` 同形且不设类型白名单, 按 `task_type` 合并为每类一次入队事务, 其 `missing` 只覆盖目标实体不存在的 404, 同番号不同文件各建一条 (逐文件结算不合并). 逐条循环提交不允许, 前端多选一律走批量端点 (见 [frontend.md](frontend.md)). `/tasks/batch` 的选择集是 `task_ids` **或**与列表同形的 `status` / `type` (两者互斥, 未传则不限): `cancel` 把排队 / 运行中标 `failed` 而不删行, `delete` 只动终态并清除磁盘产物, `retry` 只对 `failed` 按原 type / payload / priority 再入队并返回新 `task_ids`, 求交后为空则 `affected=0`. FeedItem 的历史操作是单端点 + 单一 action, 语义见 [feeds.md](feeds.md). 用户标签挂载 (影片 / 演员各一端点) 与标签新建 (`POST /facets/user_tag`: 按名称取回或新建, 响应与入参同序) 都只有批量入口: 未知标签 id 是请求级 404, 不存在的实体计入 `missing`, 已处于目标态计入 `unchanged`.
