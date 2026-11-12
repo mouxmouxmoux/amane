@@ -22,7 +22,7 @@
 
 `client` 每次进入都付一次 FastAPI lifespan. 同一资源的 CRUD / 校验 / 空列表放入**同一个**测试函数, 用循环执行表测试, 不能用 `@pytest.mark.parametrize` 乘 `client`. 建库默认会入队 REFRESH, 不测扫描时显式 `scan=False`. 必须独占 worker 的 (claim、复用活跃任务) 才用 `stop_worker`; 解析 / 爬虫 / 纯函数测试不经由 lifespan, 不必为墙钟去合并.
 
-CI 的 Windows job 仍执行全套 Python 测试 — 盘符、原生分隔符、跨盘 `commonpath` 并不都标 `skipif`; 前端与类型检查与 OS 无关, 不在 Windows 安装 pnpm / Node.
+CI 的 Windows job 执行全套 Python 测试; 测试配置统一以 UTF-8 写入. 查询计数用例须通过 `tests/api/conftest.py::stop_worker` 排除后台查询; 前端与类型检查与 OS 无关, 不在 Windows 安装 pnpm / Node.
 
 ## 玩具测试
 

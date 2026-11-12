@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.asyncio
-async def test_path_preview_query_count(repo: Repository, tmp_path: Path) -> None:
+async def test_path_preview_query_count(repo: Repository, tmp_path: Path, stop_worker: None) -> None:
     library = await repo.create_library(name="preview", path=str(tmp_path), video_template="{number}.{ext}")
     assert library.id is not None
     first = await repo.upsert_metadata(number="MIDV-123", actors=["Actor A"])

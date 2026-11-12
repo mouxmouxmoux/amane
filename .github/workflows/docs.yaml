@@ -45,6 +45,7 @@ jobs:
           path: site
 
   deploy:
+    if: github.event.repository.fork != true
     needs: build
     runs-on: ubuntu-latest
     environment:

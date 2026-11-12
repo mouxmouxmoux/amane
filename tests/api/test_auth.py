@@ -44,7 +44,7 @@ def make_token_app(tmp_path: Path, token_env: str | None, image_token_env: str |
     (tmp_path / "logs").mkdir(parents=True, exist_ok=True)
     copy_schema(tmp_path / "data" / "amane.db")
     (tmp_path / "data" / "config.toml").write_text(
-        tomli_w.dumps(hot_for_tests().model_dump(mode="json", exclude_none=True))
+        tomli_w.dumps(hot_for_tests().model_dump(mode="json", exclude_none=True)), encoding="utf-8"
     )
     return create_app()
 

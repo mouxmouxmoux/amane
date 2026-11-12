@@ -33,7 +33,9 @@ def _make_token_app(tmp_path: Path) -> FastAPI:
     for path in (data_dir, tmp_path / "files", tmp_path / "logs"):
         path.mkdir(parents=True, exist_ok=True)
     copy_schema(data_dir / "amane.db")
-    (data_dir / "config.toml").write_text(tomli_w.dumps(hot_for_tests().model_dump(mode="json", exclude_none=True)))
+    (data_dir / "config.toml").write_text(
+        tomli_w.dumps(hot_for_tests().model_dump(mode="json", exclude_none=True)), encoding="utf-8"
+    )
 
     os.environ["AMANE_DATA_DIR"] = str(data_dir)
     os.environ["AMANE_SAFE_DIRS"] = str(tmp_path / "files")
