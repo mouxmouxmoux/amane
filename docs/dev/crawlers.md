@@ -18,7 +18,7 @@ CrawlerFactory (缓存实例)
 爬虫异步并发安全. `SiteConfig` 在构造期注入, `__init__` 内合并 profile 默认与用户配置, 子类直接使用 `self.base_url` / `self.cookies`; 实例可缓存, 仅配置变化时重建工厂.
 
 - 演员站与影片站共用 HttpClient / 限速; 实现位于 `crawlers/actor/`, 只注册 `actor_registry` (可以不在影片 `registry`). **双料站**指同一 `SiteName` 在影片 / 演员注册表各有一个类并共用 `site_config`; 不允许在 `site_roles` 中手写双料名单.
-- gFriends 额外依赖 `data_dir` (Filetree 缓存) 与 `actor_scraping.gfriends_repo`.
+- gFriends 额外依赖 `data_dir` (Filetree 索引缓存与 ETag 记录) 与 `actor_scraping.gfriends_repo`. 校验或下载失败时沿用旧索引并在退避间隔内不重发请求, 上游不可达时不允许每个演员各触发一次超时; ETag 必须随索引一起写, 索引没写成却更新 ETag, 下一次比对会误判为未变化.
 - **能力声明**位于 `CrawlerProfile`: 演员爬虫必须显式给出 `capabilities` (`ACTOR_PROFILE` / `ACTOR_IMAGE`) 与 `genders`; 影片爬虫空 `capabilities` 视为 `film_metadata`. 行为开关一律写在 `traits` (取值见 `SourceTrait`), 与「来源提供什么」分开: `needs_partial` 表示依赖前序聚合结果, 排在第二段执行; `multi_language` 表示消费 `FetchOptions.language`; `uses_file_hash` 表示刮削前需要文件指纹 (扫描不读取文件内容). `site_roles` 只从两个注册表推导配置 schema 用的站点列表 (档案序 = 注册序); 聚合引擎只对声明 `multi_language` 的站点展开 `(site, lang)` 节点. Handler 按 `Actor.gender` 对 `profile().genders` 裁站, 见 [task-system.md](task-system.md). 影片来源的这些声明经 `CrawlerProfile.to_descriptor()` 进入来源目录, 刮削只读目录, 不读实例的 profile; 演员来源不进入目录.
 
 ## 影片出演者
@@ -54,10 +54,10 @@ CrawlerFactory (缓存实例)
 
 站点检索是模糊匹配, 与「哪条结果算命中」有关的比对都由爬虫自行处理:
 
-- 番号: 站内 ID 带 `-` 时, 入参 `HEYZO-3607` 与 `HEYZO3607` 都应能对上 (大小写, 短横线与空格不参与比对). 不允许把 `_` 改写为 `-`, 除非该站把两种当成同一部. 欧美日期号 (`Studio.YY.MM.DD`) 的年份 2 位与 4 位写法, 以及 FC2 的 `FC2-PPV-<id>` 与 `FC2-<id>` (官方电子市场只写带 `PPV` 的写法, 索引站多写不带的写法), 都视为同一番号. 比对与归一用 `crawlers/parsing.py` 的 `fold_number` / `is_same_number` / `fc2_article_id` / `leading_token`.
+- 番号: 站内 ID 带 `-` 时, 入参 `HEYZO-3607` 与 `HEYZO3607` 都应能对上 (大小写, 短横线与空格不参与比对). 两侧都带短横线时位置须一致, 折叠后同串不算命中. 不允许把 `_` 改写为 `-`, 除非该站把两种当成同一部. 欧美日期号 (`Studio.YY.MM.DD`) 的年份 2 位与 4 位写法, 以及 FC2 的 `FC2-PPV-<id>` 与 `FC2-<id>` (官方电子市场只写带 `PPV` 的写法, 索引站多写不带的写法), 都视为同一番号. 比对与归一用 `crawlers/parsing.py` 的 `fold_number` / `is_same_number` / `fc2_article_id` / `leading_token`.
 - 检索形态: 站内写法省略番号开头的数字段时比对放宽到「仅差数字段」, 由 `select_number_index` 取条目 (精确优先, 仅差数字段者唯一时才取). 检索词与 URL 随形态而变的来源按 `crawlers/parsing.py::number_variants` 逐个形态尝试, 命中即止; 候选只由 FC2 的两种写法, 站点省略的数字段与素人系标签 (`parsing/file_info.py::SUREN_LABELS`) 三处产生. 已知站内只写某一种写法的来源把该写法排在首位 (如 airav 的 `FC2-PPV-<id>`), 少发一次请求.
 - 演员: 检索行或实体的名字 (含别名) 与查找名相等才算命中, 用 `normalize_name` / `fold_name` / `is_same_name`; 站内的注记括号, 拆名规则由各站自行剥离.
-- 确认不了的结果视为该来源无此番号 / 无此演员, 不允许回退首条. 站点特例见 [content-routes.md](content-routes.md).
+- 确认不了的结果视为该来源无此番号 / 无此演员, 不允许回退首条. 检索列表命中不构成确认: 重定向对爬虫不可见, 站点可能把入参转到相近番号的另一部, 因此跳转后的详情页须再按页面自报的番号 (`canonical`) 确认一次. 站点特例见 [content-routes.md](content-routes.md).
 
 ## HTTP 层
 
