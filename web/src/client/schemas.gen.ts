@@ -3185,7 +3185,16 @@ export const HotSettingsSchema = {
                         'javdb',
                         'javbus',
                         'avsox',
-                        'freejavbt'
+                        'freejavbt',
+                        '1pondo',
+                        'caribbeancom',
+                        '10musume',
+                        'pacopacomama',
+                        'muramura',
+                        'h4610',
+                        'c0930',
+                        'h0930',
+                        'heyzo'
                     ],
                     western: [
                         'theporndb',
@@ -3206,6 +3215,30 @@ export const HotSettingsSchema = {
                     title: 'zh_cn'
                 },
                 site_config: {
+                    '10musume': {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    '1pondo': {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
                     airav: {
                         cookie: {},
                         languages: [
@@ -3231,6 +3264,30 @@ export const HotSettingsSchema = {
                         use_proxy: true
                     },
                     avsox: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    c0930: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    caribbeancom: {
                         cookie: {},
                         languages: [
                             'zh',
@@ -3362,6 +3419,42 @@ export const HotSettingsSchema = {
                         use_browser: 'auto',
                         use_proxy: true
                     },
+                    h0930: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    h4610: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    heyzo: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
                     iqqtv: {
                         cookie: {},
                         languages: [
@@ -3458,7 +3551,31 @@ export const HotSettingsSchema = {
                         use_browser: 'auto',
                         use_proxy: true
                     },
+                    muramura: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
                     official: {
+                        cookie: {},
+                        languages: [
+                            'zh',
+                            'ja',
+                            'en'
+                        ],
+                        official_routes: {},
+                        rate_limit: 2,
+                        use_browser: 'auto',
+                        use_proxy: true
+                    },
+                    pacopacomama: {
                         cookie: {},
                         languages: [
                             'zh',
@@ -8595,9 +8712,13 @@ export const ScrapingConfigSchema = {
                 items: {
                     type: 'string',
                     enum: [
+                        '10musume',
+                        '1pondo',
                         'airav',
                         'avbase',
                         'avsox',
+                        'c0930',
+                        'caribbeancom',
                         'dahlia',
                         'dmm',
                         'faleno',
@@ -8607,6 +8728,9 @@ export const ScrapingConfigSchema = {
                         'freejavbt',
                         'getchu',
                         'giga',
+                        'h0930',
+                        'h4610',
+                        'heyzo',
                         'iqqtv',
                         'jav321',
                         'javbus',
@@ -8614,7 +8738,9 @@ export const ScrapingConfigSchema = {
                         'javlibrary',
                         'kin8',
                         'mgstage',
+                        'muramura',
                         'official',
+                        'pacopacomama',
                         'prestige',
                         'r18dev',
                         'theporndb',
@@ -8636,9 +8762,13 @@ export const ScrapingConfigSchema = {
                 items: {
                     type: 'string',
                     enum: [
+                        '10musume',
+                        '1pondo',
                         'airav',
                         'avbase',
                         'avsox',
+                        'c0930',
+                        'caribbeancom',
                         'dahlia',
                         'dmm',
                         'faleno',
@@ -8648,6 +8778,9 @@ export const ScrapingConfigSchema = {
                         'freejavbt',
                         'getchu',
                         'giga',
+                        'h0930',
+                        'h4610',
+                        'heyzo',
                         'iqqtv',
                         'jav321',
                         'javbus',
@@ -8655,7 +8788,9 @@ export const ScrapingConfigSchema = {
                         'javlibrary',
                         'kin8',
                         'mgstage',
+                        'muramura',
                         'official',
+                        'pacopacomama',
                         'prestige',
                         'r18dev',
                         'theporndb',
@@ -8677,9 +8812,13 @@ export const ScrapingConfigSchema = {
                 items: {
                     type: 'string',
                     enum: [
+                        '10musume',
+                        '1pondo',
                         'airav',
                         'avbase',
                         'avsox',
+                        'c0930',
+                        'caribbeancom',
                         'dahlia',
                         'dmm',
                         'faleno',
@@ -8689,6 +8828,9 @@ export const ScrapingConfigSchema = {
                         'freejavbt',
                         'getchu',
                         'giga',
+                        'h0930',
+                        'h4610',
+                        'heyzo',
                         'iqqtv',
                         'jav321',
                         'javbus',
@@ -8696,7 +8838,9 @@ export const ScrapingConfigSchema = {
                         'javlibrary',
                         'kin8',
                         'mgstage',
+                        'muramura',
                         'official',
+                        'pacopacomama',
                         'prestige',
                         'r18dev',
                         'theporndb',
@@ -9355,9 +9499,13 @@ export const SiteConfigSchema = {
 export const SiteNameSchema = {
     type: 'string',
     enum: [
+        '10musume',
+        '1pondo',
         'airav',
         'avbase',
         'avsox',
+        'c0930',
+        'caribbeancom',
         'dahlia',
         'dmm',
         'faleno',
@@ -9368,6 +9516,9 @@ export const SiteNameSchema = {
         'getchu',
         'gfriends',
         'giga',
+        'h0930',
+        'h4610',
+        'heyzo',
         'iqqtv',
         'jav321',
         'javbus',
@@ -9376,7 +9527,9 @@ export const SiteNameSchema = {
         'kin8',
         'mgstage',
         'minnano',
+        'muramura',
         'official',
+        'pacopacomama',
         'prestige',
         'r18dev',
         'theporndb',
